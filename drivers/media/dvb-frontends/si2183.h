@@ -1,7 +1,5 @@
 /*
- * Silicon Labs Si2168 DVB-T/T2/C demodulator driver
- *
- * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
+ * Silicon Labs Si2183(2) DVB-T/T2/C/C2/S/S2 demodulator driver
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -14,15 +12,15 @@
  *    GNU General Public License for more details.
  */
 
-#ifndef SI2168_H
-#define SI2168_H
+#ifndef SI2183_H
+#define SI2183_H
 
 #include <linux/dvb/frontend.h>
 /*
  * I2C address
  * 0x64
  */
-struct si2168_config {
+struct si2183_config {
 	/*
 	 * frontend
 	 * returned by driver
@@ -36,8 +34,8 @@ struct si2168_config {
 	struct i2c_adapter **i2c_adapter;
 
 	/* TS mode */
-#define SI2168_TS_PARALLEL	0x06
-#define SI2168_TS_SERIAL	0x03
+#define SI2183_TS_PARALLEL	0x06
+#define SI2183_TS_SERIAL	0x03
 	u8 ts_mode;
 
 	/* TS clock inverted */
@@ -45,17 +43,13 @@ struct si2168_config {
 
 	/* TS clock gapped */
 	bool ts_clock_gapped;
+	/*agc*/
+	u8 agc_mode;
 
-	/* Tuner control pins */
-#define SI2168_MP_NOT_USED	1
-#define SI2168_MP_A		2
-#define SI2168_MP_B		3
-#define SI2168_MP_C		4
-#define SI2168_MP_D		5
-	int agc_pin;
-	bool agc_inv;
-	int fef_pin;
-	bool fef_inv;
+	/*rf switch*/
+	void (*RF_switch)(struct i2c_adapter * i2c,u8 rf_in,u8 flag);
+	/*rf no.*/
+	u8 rf_in;
 };
 
 #endif

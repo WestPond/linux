@@ -156,6 +156,8 @@ enum fe_code_rate {
 	FEC_3_5,
 	FEC_9_10,
 	FEC_2_5,
+	FEC_1_4,
+	FEC_1_3,  
 };
 
 enum fe_modulation {
@@ -342,6 +344,7 @@ enum fe_delivery_system {
 	SYS_DVBT2,
 	SYS_TURBO,
 	SYS_DVBC_ANNEX_C,
+	SYS_DVBC2,
 };
 
 /* backward compatibility */
