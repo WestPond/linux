@@ -219,7 +219,7 @@ static int mxl603_set_params(struct dvb_frontend *fe)
 	u32 freq = 0;
 	u8 tmp;
 	
-	pr_info("delivery_system=%d frequency=%d\n",
+	pr_debug("delivery_system=%d frequency=%d\n",
 			c->delivery_system, c->frequency);
 	if (!dev->active) {
 		ret = -EAGAIN;
