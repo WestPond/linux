@@ -1147,26 +1147,18 @@ static int mn88436_read_status(struct dvb_frontend *fe,enum fe_status *status)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct mn88436_dev *dev = i2c_get_clientdata(client);
-
-	int ret;
 	int utemp;
-	int i =0;
-	for(i=0;i<50;i++)
-	{
-	ret = regmap_read(dev->regmap[0],DMD_MAIN_STSMON1,&utemp);
-	if(utemp&0x1){
-		*status = FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
-		break;
-		}
-	else
-		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER;
+	int ret;
 
-		msleep(1);
-	}
-	
-	return ret; 
-	
+	ret = regmap_read(dev->regmap[0],DMD_MAIN_STSMON1,&utemp);
+	if(utemp&0x1)
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
+	else
+		*status = 0;
+
+	return ret;
 }
+
 static int mn88436_init(struct dvb_frontend *fe)
 {
 	struct i2c_client *client = fe->demodulator_priv;
