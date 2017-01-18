@@ -411,6 +411,21 @@
 				status = "ok";
 			};
 
+			nand: nand@c0000 {
+				compatible = "marvell,armada370-nand";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg= <0xc0000 0x60>;
+				interrupts = <3>;
+				clocks = <&gate_clk 10>;
+				pinctrl-0 = <&pmx_nand>;
+				pinctrl-names = "default";
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
+				status = "disabled";
+			};
+
 			audio0: audio-controller@b0000 {
 				compatible = "marvell,dove-audio";
 				reg = <0xb0000 0x2210>;
