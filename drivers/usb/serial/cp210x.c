@@ -448,6 +448,11 @@ struct cp210x_gpio_write {
 	u8	state;
 } __packed;
 
+struct cp2108_gpio_write {
+	u16	mask;
+	u16	state;
+} __packed;
+
 /*
  * Helper to get interface number when we only have struct usb_serial.
  */
@@ -1263,7 +1268,7 @@ static void cp210x_break_ctl(struct tty_struct *tty, int break_state)
 }
 
 #ifdef CONFIG_GPIOLIB
-static int cp210x_gpio_request(struct gpio_chip *gc, unsigned int offset)
+static int cp2105_gpio_request(struct gpio_chip *gc, unsigned int offset)
 {
 	struct usb_serial *serial = gpiochip_get_data(gc);
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
@@ -1286,31 +1291,57 @@ static int cp210x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 static int cp210x_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct usb_serial *serial = gpiochip_get_data(gc);
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	int result;
-	u8 buf;
 
-	result = cp210x_read_vendor_block(serial, REQTYPE_INTERFACE_TO_HOST,
-					  CP210X_READ_LATCH, &buf, sizeof(buf));
-	if (result < 0)
-		return result;
+	if (priv->partnum == CP210X_PARTNUM_CP2105) {
+		u8 buf;
 
-	return !!(buf & BIT(gpio));
+		result = cp210x_read_vendor_block(serial, REQTYPE_INTERFACE_TO_HOST,
+						  CP210X_READ_LATCH, &buf, sizeof(buf));
+		if (result < 0)
+			return result;
+
+		return !!(buf & BIT(gpio));
+
+	} else if (priv->partnum == CP210X_PARTNUM_CP2108) {
+		u16 buf;
+
+		result = cp210x_read_vendor_block(serial, REQTYPE_INTERFACE_TO_HOST,
+						  CP210X_READ_LATCH, &buf, sizeof(buf));
+
+		if (result < 0)
+			return result;
+
+		return !!(le16_to_cpu(buf) & BIT(gpio));
+	}
+	else
+		return 0;
 }
 
 static void cp210x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 {
 	struct usb_serial *serial = gpiochip_get_data(gc);
-	struct cp210x_gpio_write buf;
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 
-	if (value == 1)
-		buf.state = BIT(gpio);
-	else
-		buf.state = 0;
+	if (priv->partnum == CP210X_PARTNUM_CP2105) {
+		struct cp210x_gpio_write buf;
 
-	buf.mask = BIT(gpio);
+		buf.state = value == 1 ? BIT(gpio) : 0;
+		buf.mask = BIT(gpio);
 
-	cp210x_write_vendor_block(serial, REQTYPE_HOST_TO_INTERFACE,
-				  CP210X_WRITE_LATCH, &buf, sizeof(buf));
+		cp210x_write_vendor_block(serial, REQTYPE_HOST_TO_INTERFACE,
+					  CP210X_WRITE_LATCH, &buf, sizeof(buf));
+
+	} else if (priv->partnum == CP210X_PARTNUM_CP2108) {
+		struct cp2108_gpio_write buf;
+
+		buf.mask = cpu_to_le16(BIT(gpio));
+		buf.state = value == 1 ? cpu_to_le16(BIT(gpio)) : 0;
+
+		cp210x_write_vendor_block(serial, REQTYPE_HOST_TO_INTERFACE,
+					  CP210X_WRITE_LATCH, &buf, sizeof(buf));
+	}
 }
 
 static int cp210x_gpio_direction_get(struct gpio_chip *gc, unsigned int gpio)
@@ -1321,8 +1352,21 @@ static int cp210x_gpio_direction_get(struct gpio_chip *gc, unsigned int gpio)
 
 static int cp210x_gpio_direction_input(struct gpio_chip *gc, unsigned int gpio)
 {
+	struct usb_serial *serial = gpiochip_get_data(gc);
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+
 	/* Hardware does not support an input mode */
-	return -ENOTSUPP;
+	if (priv->partnum == CP210X_PARTNUM_CP2105)
+		return -ENOTSUPP;
+
+	/* Must be open-drain for CP2108/2104 */
+	if (priv->gpio_mode & BIT(gpio))
+		return -ENOTSUPP;
+
+	/* For CP2104/CP2108 in open-drain, write 1 to latch to set as input */
+	cp210x_gpio_set(gc, gpio, 1);
+
+	return 0;
 }
 
 static int cp210x_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio,
@@ -1354,7 +1398,7 @@ static int cp210x_gpio_set_single_ended(struct gpio_chip *gc, unsigned int gpio,
  * this driver that provide GPIO do so in a way that does not impact other
  * signals and are thus expected to have very different initialisation.
  */
-static int cp2105_shared_gpio_init(struct usb_serial *serial)
+static int cp210x_gpio_init(struct usb_serial *serial)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	struct cp210x_pin_mode mode;
@@ -1362,43 +1406,55 @@ static int cp2105_shared_gpio_init(struct usb_serial *serial)
 	u8 intf_num = cp210x_interface_num(serial);
 	int result;
 
-	result = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST,
-					  CP210X_GET_DEVICEMODE, &mode,
-					  sizeof(mode));
-	if (result < 0)
-		return result;
+	if (priv->partnum == CP210X_PARTNUM_CP2105) {
+		result = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST,
+						  CP210X_GET_DEVICEMODE, &mode,
+						  sizeof(mode));
+		if (result < 0)
+			return result;
 
-	result = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST,
-					  CP210X_GET_PORTCONFIG, &config,
-					  sizeof(config));
-	if (result < 0)
-		return result;
+		result = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST,
+						  CP210X_GET_PORTCONFIG, &config,
+						  sizeof(config));
+		if (result < 0)
+			return result;
 
-	/*  2 banks of GPIO - One for the pins taken from each serial port */
-	if (intf_num == 0) {
-		if (mode.eci == CP210X_PIN_MODE_MODEM)
+		/*  2 banks of GPIO - One for the pins taken from each serial port */
+		if (intf_num == 0) {
+			if (mode.eci == CP210X_PIN_MODE_MODEM)
+				return 0;
+
+			priv->config = config.eci_cfg;
+			priv->gpio_mode = (u8)((le16_to_cpu(config.gpio_mode) &
+							CP210X_ECI_GPIO_MODE_MASK) >>
+							CP210X_ECI_GPIO_MODE_OFFSET);
+			priv->gc.ngpio = 2;
+		} else if (intf_num == 1) {
+			if (mode.sci == CP210X_PIN_MODE_MODEM)
+				return 0;
+
+			priv->config = config.sci_cfg;
+			priv->gpio_mode = (u8)((le16_to_cpu(config.gpio_mode) &
+							CP210X_SCI_GPIO_MODE_MASK) >>
+							CP210X_SCI_GPIO_MODE_OFFSET);
+			priv->gc.ngpio = 3;
+		} else {
+			return -ENODEV;
+		}
+
+		priv->gc.request = cp2105_gpio_request;
+
+	} else if (priv->partnum == CP210X_PARTNUM_CP2108) {
+		if (intf_num > 0)
 			return 0;
 
-		priv->config = config.eci_cfg;
-		priv->gpio_mode = (u8)((le16_to_cpu(config.gpio_mode) &
-						CP210X_ECI_GPIO_MODE_MASK) >>
-						CP210X_ECI_GPIO_MODE_OFFSET);
-		priv->gc.ngpio = 2;
-	} else if (intf_num == 1) {
-		if (mode.sci == CP210X_PIN_MODE_MODEM)
-			return 0;
-
-		priv->config = config.sci_cfg;
-		priv->gpio_mode = (u8)((le16_to_cpu(config.gpio_mode) &
-						CP210X_SCI_GPIO_MODE_MASK) >>
-						CP210X_SCI_GPIO_MODE_OFFSET);
-		priv->gc.ngpio = 3;
-	} else {
-		return -ENODEV;
+		/* TODO: Query actual programmed mode of GPIO */
+		priv->config = 0;
+		priv->gpio_mode = 0;
+		priv->gc.ngpio = 16;
 	}
 
 	priv->gc.label = "cp210x";
-	priv->gc.request = cp210x_gpio_request;
 	priv->gc.get_direction = cp210x_gpio_direction_get;
 	priv->gc.direction_input = cp210x_gpio_direction_input;
 	priv->gc.direction_output = cp210x_gpio_direction_output;
@@ -1429,7 +1485,7 @@ static void cp210x_gpio_remove(struct usb_serial *serial)
 
 #else
 
-static int cp2105_shared_gpio_init(struct usb_serial *serial)
+static int cp210x_gpio_init(struct usb_serial *serial)
 {
 	return 0;
 }
@@ -1491,12 +1547,10 @@ static int cp210x_attach(struct usb_serial *serial)
 
 	usb_set_serial_data(serial, priv);
 
-	if (priv->partnum == CP210X_PARTNUM_CP2105) {
-		result = cp2105_shared_gpio_init(serial);
-		if (result < 0) {
-			dev_err(&serial->interface->dev,
-				"GPIO initialisation failed, continuing without GPIO support\n");
-		}
+	result = cp210x_gpio_init(serial);
+	if (result < 0) {
+		dev_err(&serial->interface->dev,
+			"GPIO initialisation failed, continuing without GPIO support\n");
 	}
 
 	return 0;
