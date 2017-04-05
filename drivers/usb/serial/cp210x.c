@@ -220,8 +220,8 @@ MODULE_DEVICE_TABLE(usb, id_table);
 struct cp210x_serial_private {
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip	gc;
-	u8			config;
-	u8			gpio_mode;
+	u16			config;
+	u16			gpio_mode;
 	bool			gpio_registered;
 #endif
 	u8			partnum;
@@ -1327,7 +1327,7 @@ static void cp210x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 	if (priv->partnum == CP210X_PARTNUM_CP2105) {
 		struct cp210x_gpio_write buf;
 
-		buf.state = value == 1 ? BIT(gpio) : 0;
+		buf.state = value ? BIT(gpio) : 0;
 		buf.mask = BIT(gpio);
 
 		cp210x_write_vendor_block(serial, REQTYPE_HOST_TO_INTERFACE,
@@ -1337,7 +1337,7 @@ static void cp210x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 		struct cp2108_gpio_write buf;
 
 		buf.mask = cpu_to_le16(BIT(gpio));
-		buf.state = value == 1 ? cpu_to_le16(BIT(gpio)) : 0;
+		buf.state = value ? cpu_to_le16(BIT(gpio)) : 0;
 
 		cp210x_write_vendor_block(serial, REQTYPE_HOST_TO_INTERFACE,
 					  CP210X_WRITE_LATCH, &buf, sizeof(buf));
@@ -1372,6 +1372,7 @@ static int cp210x_gpio_direction_input(struct gpio_chip *gc, unsigned int gpio)
 static int cp210x_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio,
 					int value)
 {
+	cp210x_gpio_set(gc, gpio, value);
 	return 0;
 }
 
