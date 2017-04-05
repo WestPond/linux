@@ -26,6 +26,10 @@ config VIDEO_FIXED_MINOR_RANGES
 
 	  When in doubt, say N.
 
+config VIDEO_DUMMY
+	tristate "Dummy option to build components needed by modules"
+	select VIDEOBUF_DMA_SG
+
 config VIDEO_PCI_SKELETON
 	tristate "Skeleton PCI V4L2 driver"
 	depends on PCI
