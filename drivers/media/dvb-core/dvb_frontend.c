@@ -2185,6 +2185,24 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 	int err = -EOPNOTSUPP;
 
 	switch (cmd) {
+
+	case FE_ECP3FW_READ:
+		//printk("FE_ECP3FW_READ *****************");
+		if (fe->ops.spi_read) {
+			struct ecp3_info *info = parg;	
+			fe->ops.spi_read(fe, info);
+		}
+		err = 0;
+		break;
+	case FE_ECP3FW_WRITE:
+		//printk("FE_ECP3FW_WRITE *****************");
+		if (fe->ops.spi_write) {
+			struct ecp3_info *info = parg;	
+			fe->ops.spi_write(fe, info);
+		
+		}
+		err = 0;
+		break;
 	case FE_GET_INFO: {
 		struct dvb_frontend_info* info = parg;
 

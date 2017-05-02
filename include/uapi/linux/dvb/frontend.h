@@ -28,6 +28,11 @@
 
 #include <linux/types.h>
 
+struct ecp3_info
+{
+	__u8 reg;
+	__u32 data;
+};
 enum fe_type {
 	FE_QPSK,
 	FE_QAM,
@@ -156,6 +161,8 @@ enum fe_code_rate {
 	FEC_3_5,
 	FEC_9_10,
 	FEC_2_5,
+	FEC_1_4,
+	FEC_1_3,  
 };
 
 enum fe_modulation {
@@ -342,6 +349,7 @@ enum fe_delivery_system {
 	SYS_DVBT2,
 	SYS_TURBO,
 	SYS_DVBC_ANNEX_C,
+	SYS_DVBC2,
 };
 
 /* backward compatibility */
@@ -598,5 +606,9 @@ struct dvb_frontend_event {
 #define FE_GET_EVENT		   _IOR('o', 78, struct dvb_frontend_event)
 
 #define FE_DISHNETWORK_SEND_LEGACY_CMD _IO('o', 80) /* unsigned int */
+
+#define FE_ECP3FW_READ    _IOR('o', 90, struct ecp3_info)
+#define FE_ECP3FW_WRITE   _IOW('o', 91, struct ecp3_info)
+
 
 #endif /*_DVBFRONTEND_H_*/

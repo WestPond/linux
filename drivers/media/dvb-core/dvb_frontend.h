@@ -469,6 +469,10 @@ struct dvb_frontend_ops {
 
 	int (*set_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
 	int (*get_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
+
+	void(*spi_read)( struct dvb_frontend *fe,struct ecp3_info *ecp3inf);
+	void(*spi_write)( struct dvb_frontend *fe,struct ecp3_info *ecp3inf);
+	
 };
 
 #ifdef __DVB_CORE__
