@@ -34,6 +34,6 @@ static const char * const dove_dt_compat[] __initconst = {
 
 DT_MACHINE_START(DOVE_DT, "Marvell Dove")
 	.init_machine	= dove_init,
-	.restart	= mvebu_restart,
+//	.restart	= mvebu_restart,
 	.dt_compat	= dove_dt_compat,
 MACHINE_END
