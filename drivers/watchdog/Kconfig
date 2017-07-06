@@ -172,6 +172,12 @@ config BD70528_WATCHDOG
 	  Alternatively say M to compile the driver as a module,
 	  which will be called bd70528_wdt.
 
+config DS1372_WATCHDOG
+	tristate "DS1372 watchdog"
+	select WATCHDOG_CORE
+	help
+	  DS1372 based WDT ( EDU700 )
+
 config DA9052_WATCHDOG
 	tristate "Dialog DA9052 Watchdog"
 	depends on PMIC_DA9052 || COMPILE_TEST
