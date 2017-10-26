@@ -676,6 +676,13 @@ config LEDS_NIC78BX
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-nic78bx.
 
+config LEDS_SL500
+	tristate "LED support for sl500 platform"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the LEDs on the Systech
+	  SL500.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
