@@ -329,7 +329,12 @@ static int pca953x_write_regs(struct pca953x_chip *chip, int reg, u8 *val)
 	u8 regaddr = pca953x_recalc_addr(chip, reg, 0, true, true);
 	int ret;
 
-	ret = regmap_bulk_write(chip->regmap, regaddr, val, NBANK(chip));
+	ret = regmap_write(chip->regmap, regaddr, val[0]);
+	if (ret < 0) {
+		dev_err(&chip->client->dev, "failed writing register\n");
+		return ret;
+	}
+	ret = regmap_write(chip->regmap, regaddr + 1, val[1]);
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "failed writing register\n");
 		return ret;
