@@ -1008,4 +1008,13 @@ struct dvb_frontend_event {
 
 #endif
 
+struct ecp3_info
+{
+	__u8 reg;
+	__u32 data;
+};
+
+#define FE_ECP3FW_READ    _IOR('o', 90, struct ecp3_info)
+#define FE_ECP3FW_WRITE   _IOW('o', 91, struct ecp3_info)
+
 #endif /*_DVBFRONTEND_H_*/

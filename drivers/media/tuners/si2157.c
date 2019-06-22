@@ -304,23 +304,23 @@ static int si2157_set_params(struct dvb_frontend *fe)
 
 	switch (c->delivery_system) {
 	case SYS_ATSC:
-			delivery_system = 0x00;
-			if_frequency = 3250000;
-			break;
+		delivery_system = 0x00;
+		if_frequency = 3250000;
+		break;
 	case SYS_DVBC_ANNEX_B:
-			delivery_system = 0x10;
-			if_frequency = 4000000;
-			break;
+		delivery_system = 0x10;
+		if_frequency = 4000000;
+		break;
 	case SYS_DVBT:
 	case SYS_DVBT2: /* it seems DVB-T and DVB-T2 both are 0x20 here */
-			delivery_system = 0x20;
-			break;
+		delivery_system = 0x20;
+		break;
 	case SYS_DVBC_ANNEX_A:
-			delivery_system = 0x30;
-			break;
+		delivery_system = 0x30;
+		break;
 	default:
-			ret = -EINVAL;
-			goto err;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	memcpy(cmd.args, "\x14\x00\x03\x07\x00\x00", 6);
