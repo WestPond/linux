@@ -19,7 +19,7 @@ static int reg_read(struct i2c_client *client,u8 reg_addr,u8 *val)
 	
 	if(ret!=2)
 	{
-		pr_warn("i2c read reg error !!");
+		dev_warn(&client->dev, "i2c read reg error !!");
 		if (ret < 0)
 			return ret;
 		else
@@ -35,7 +35,7 @@ static int reg_write(struct i2c_client *client,u8 reg_addr,u8 val)
 	struct i2c_msg msg ={.addr = client->addr, .flags = 0, .buf = buf, .len = 2}; 
 
 	if((ret = i2c_transfer (client->adapter,&msg,1))!=1){
-		pr_warn("%s: i2c write error (addr 0x%02x, ret == %i)\n",
+		dev_warn(&client->dev, "%s: i2c write error (addr 0x%02x, ret == %i)\n",
 			__func__, reg_addr, ret);
 		return -EREMOTEIO;
 	}
@@ -204,7 +204,7 @@ static int mxl603_init(struct dvb_frontend *fe)
 	dev->active = true;
 	return ret;
 err:
-	pr_err("%s_failed = %d",__FUNCTION__,ret);
+	dev_err(&client->dev, "%s_failed = %d",__FUNCTION__,ret);
 	return ret;
 }
 static int mxl603_set_params(struct dvb_frontend *fe)
@@ -218,7 +218,7 @@ static int mxl603_set_params(struct dvb_frontend *fe)
 	u32 freq = 0;
 	u8 tmp;
 	
-	pr_info("delivery_system=%d frequency=%d\n",
+	dev_dbg(&client->dev, "delivery_system=%d frequency=%d\n",
 			c->delivery_system, c->frequency);
 	if (!dev->active) {
 		ret = -EAGAIN;
@@ -460,7 +460,7 @@ static int mxl603_set_params(struct dvb_frontend *fe)
 	return ret;
 
 err:
-	pr_err("failed = %d ",ret);
+	dev_err(&client->dev, "failed = %d ",ret);
 	return ret;
 }
 
@@ -529,7 +529,7 @@ static int mxl603_probe(struct i2c_client *client,
 	if (ret)
 		goto err_kfree;
 	
-	pr_info("chip id = 0x%x \n",utemp);
+	dev_dbg(&client->dev, "chip id = 0x%x \n",utemp);
 	
 	if(utemp!=0x1){
 		ret = -ENODEV;
@@ -550,7 +550,7 @@ static int mxl603_probe(struct i2c_client *client,
 err_kfree:
 	kfree(dev);
 err:
-	pr_err("%s___failed=%d\n",__FUNCTION__, ret);
+	dev_err(&client->dev, "%s___failed=%d\n",__FUNCTION__, ret);
 	return ret;
 }
 static int mxl603_remove(struct i2c_client *client)
