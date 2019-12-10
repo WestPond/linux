@@ -34,6 +34,8 @@ static const char * const dove_dt_compat[] __initconst = {
 
 DT_MACHINE_START(DOVE_DT, "Marvell Dove")
 	.init_machine	= dove_init,
+#if 0 /* EDU700 uses a GPIO to perform reboot */
 	.restart	= mvebu_restart,
+#endif
 	.dt_compat	= dove_dt_compat,
 MACHINE_END
