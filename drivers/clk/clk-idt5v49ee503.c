@@ -135,7 +135,7 @@ static int idt5v_reg_write(struct i2c_client *client, u8 reg, u8 mask, u8 val)
 
 	buf[0] = 0;		/* Command PROGREAD/PROGWRITE */
 	buf[1] = reg;
-	buf[2] = (v & mask) | (val & mask);
+	buf[2] = (v & ~mask) | (val & mask);
 	ret = i2c_master_send(client, buf, 3);
 	if (ret != 3)
 		return ret;
@@ -228,7 +228,7 @@ static int idt5v_pll_ctrl(struct idt5v_clk_port *clk_port, u8 enabled)
 
 	if (mask)
 		return idt5v_reg_write(clk_port->drvdata->client,
-			0x04, mask, enabled ? 0x1 : 0x0 );
+			0x04, mask, enabled ? mask : 0x0 );
 	else
 		return 0;
 }
@@ -320,7 +320,7 @@ static int idt5v_out_ctrl(struct idt5v_clk_port *clk_port, u8 enabled)
 	}
 
 	return idt5v_reg_write(clk_port->drvdata->client,
-		0x03, mask, enabled ? 0x1 : 0x0 );
+		0x03, mask, enabled ? mask : 0x0 );
 }
 
 static int idt5v_prepare(struct clk_hw *hw)
@@ -354,6 +354,7 @@ static void idt5v_unprepare(struct clk_hw *hw)
 static int idt5v_is_prepared(struct clk_hw *hw)
 {
 	struct idt5v_clk_port *clk_port = to_idt5v_clk(hw);
+
 	return clk_port->enabled;
 }
 
@@ -361,6 +362,7 @@ static unsigned long idt5v_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct idt5v_clk_port *clk_port = to_idt5v_clk(hw);
+
 	return clk_port->params.f_out;
 }
 
