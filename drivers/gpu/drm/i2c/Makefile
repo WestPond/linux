@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
+ad9889b-y := ad9889b_drv.o
+obj-$(CONFIG_DRM_I2C_AD9889B) += ad9889b.o
+
 ch7006-y := ch7006_drv.o ch7006_mode.o
 obj-$(CONFIG_DRM_I2C_CH7006) += ch7006.o
 

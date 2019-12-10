@@ -2,6 +2,9 @@
 menu "I2C encoder or helper chips"
      depends on DRM && DRM_KMS_HELPER && I2C
 
+config DRM_I2C_AD9889B
+	tristate "Analog Devices AD9889b HDMI Transmitter"
+
 config DRM_I2C_CH7006
 	tristate "Chrontel ch7006 TV encoder"
 	default m if DRM_NOUVEAU
