@@ -1,0 +1,249 @@
+/dts-v1/;
+
+#include "dove.dtsi"
+
+/ {
+	model = "Cogent CSB1730b";
+	compatible = "cogent,csb1730b", "marvell,dove";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	clocks {
+		/* 25MHz reference crystal */
+		ref25: oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		lcd0_fb: framebuffer@0 {
+			compatible = "marvell,armada-framebuffer";
+			no-map;
+			size = <0x02000000>;
+			alignment = <0x02000000>;
+		};
+		lcd1_fb: framebuffer@1 {
+			compatible = "marvell,armada-framebuffer";
+			no-map;
+			size = <0x02000000>;
+			alignment = <0x02000000>;
+		};
+	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pinctrl {
+	pmx_uart2: pmx-uart2 {
+		marvell,pins = "mpp14", "mpp15";
+		marvell,function = "uart2";
+	};
+};
+
+&uart0 { status = "okay"; };
+&uart2 {
+	status = "okay";
+	pinctrl-0 = <&pmx_uart2>;
+	pinctrl-names = "default";
+};
+
+&mdio { status = "okay"; };
+&eth { status = "okay"; };
+&ethphy {
+	compatible = "marvell,88e1310";
+	reg = <0>;
+};
+
+&gpu {
+	status = "okay";
+};
+
+&lcd0 {
+	status = "okay";
+	clocks = <&idt5v 2>;
+	clock-names = "ext_ref_clk0";
+	framebuffer = <&lcd0_fb>;
+	lcd0_port: port {
+		lcd0_rgb: endpoint {
+			remote-endpoint = <&hdmi_video>;
+		};
+	};
+};
+
+&lcd1 {
+	status = "disabled";
+	clocks = <&idt5v 3>;
+	clock-names = "ext_ref_clk1";
+	framebuffer = <&lcd1_fb>;
+/*
+	lcd1_port: port {
+		lcd1_rgb: endpoint {
+			remote-endpoint = <&vga_dac_in>;
+		};
+	};
+*/
+};
+
+&vmeta {
+	status = "okay";
+};
+
+&pcie {
+	status = "okay";
+
+	/* Atheros mini-pcie */
+	pcie@2 {
+		status = "okay";
+		reset-gpios = <&gpio0 22 1>;
+	};
+};
+
+&i2c {
+	pinctrl-0 = <&pmx_i2c1>;
+	pinctrl-names = "default";
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	idt5v: clock-generator@6a {
+		compatible = "idt,idt5v49ee503";
+		reg = <0x6a>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#clock-cells = <1>;
+
+		/* connect xtal input to 25MHz reference */
+		clocks = <&ref25>;
+		clock-names = "refclk";
+
+		clkout2 {
+			reg = <2>;
+			idt,src = "pll1";
+		};
+
+		clkout3 {
+			reg = <3>;
+			idt,src = "pll2";
+		};
+	};
+
+	wdt: ds1372@68 {
+		compatible = "ds,ds1372";
+		reg = <0x68>;
+	};
+
+	gpio: pca9555@27 {
+		compatible = "nxp,pca9555";
+		reg = <0x27>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <100000>;
+	ad9889b: hdmi-encoder@39 {
+		compatible = "ad9889b";
+		reg = <0x39>;
+		interrupts-extended = <&gpio1 6 IRQ_TYPE_LEVEL_LOW>;
+
+		port {
+			hdmi_video: endpoint {
+				remote-endpoint = <&lcd0_rgb>;
+			};
+		};
+	};
+};
+
+&sdio0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	/* spi0.0: Micron SPI nor */
+	spi-flash@0 {
+		compatible = "st,m25p64", "jedec,spi-nor";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0xc0000>;
+			};
+			partition@c0000 {
+				label = "env";
+				reg = <0x0 0x10000>;
+			};
+		};
+	};
+};
+
+&nand  {
+	status = "okay";
+	num-cs = <1>;
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "kernel.0";
+			reg = <0x0 0x800000>;
+		};
+		partition@800000 {
+			label = "kernel.1";
+			reg = <0x800000 0x800000>;
+		};
+		partition@1000000 {
+			label = "rootfs.0";
+			reg = <0x1000000 0x8000000>;
+		};
+		partition@9000000 {
+			label = "rootfs.1";
+			reg = <0x9000000 0x8000000>;
+		};
+		partition@11000000 {
+			label = "persist";
+			reg = <0x11000000 0x1000000>;
+		};
+		partition@12000000 {
+			label = "app.0";
+			reg = <0x12000000 0x4000000>;
+		};
+		partition@16000000 {
+			label = "app.1";
+			reg = <0x16000000 0x4000000>;
+		};
+		partition@1a000000 {
+			label = "data";
+			reg = <0x1a000000 0x6000000>;
+		};
+	};
+};
