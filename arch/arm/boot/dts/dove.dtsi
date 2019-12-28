@@ -34,12 +34,6 @@
 		marvell,tauros2-cache-features = <0>;
 	};
 
-	gpu-subsystem {
-		compatible = "marvell,dove-gpu-subsystem";
-		cores = <&gpu>;
-		status = "disabled";
-	};
-
 	i2c-mux {
 		compatible = "i2c-mux-pinctrl";
 		#address-cells = <1>;
@@ -621,6 +615,16 @@
 						marvell,function = "gpio";
 					};
 
+					pmx_gpio_22: pmx-gpio-22 {
+						marvell,pins = "mpp22";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_23: pmx-gpio-23 {
+						marvell,pins = "mpp23";
+						marvell,function = "gpio";
+					};
+
 					pmx_camera: pmx-camera {
 						marvell,pins = "mpp_camera";
 						marvell,function = "camera";
@@ -786,14 +790,14 @@
 			};
 
 			lcd1: lcd-controller@810000 {
-				compatible = "marvell,dove-lcd";
+				compatible = "marvell,dove-lcd", "marvell,armada-lcdc";
 				reg = <0x810000 0x1000>;
 				interrupts = <46>;
 				status = "disabled";
 			};
 
 			lcd0: lcd-controller@820000 {
-				compatible = "marvell,dove-lcd";
+				compatible = "marvell,dove-lcd", "marvell,armada-lcdc";
 				reg = <0x820000 0x1000>;
 				interrupts = <47>;
 				status = "disabled";
@@ -814,6 +818,16 @@
 				interrupts = <48>;
 				power-domains = <&gpu_domain>;
 				reg = <0x840000 0x4000>;
+				status = "disabled";
+			};
+
+			vmeta: vmeta@C00000 {
+				clocks = <&divider_clk 2>;
+				clock-names = "core";
+				compatible = "marvell,vmeta";
+				interrupts = <51>;
+				power-domains = <&vpu_domain>;
+				reg = <0xC00000 0x280000>;
 				status = "disabled";
 			};
 		};
