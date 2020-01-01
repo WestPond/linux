@@ -1262,6 +1262,7 @@ dtb-$(CONFIG_MACH_DOVE) += \
 	dove-d2plug.dtb \
 	dove-d3plug.dtb \
 	dove-dove-db.dtb \
+	dove-edu700.dtb \
 	dove-sbc-a510.dtb
 dtb-$(CONFIG_ARCH_MEDIATEK) += \
 	mt2701-evb.dtb \
