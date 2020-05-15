@@ -55,6 +55,10 @@ struct erase_info {
 	u_long priv;
 	u_char state;
 	struct erase_info *next;
+
+	u8 *erase_buf;
+	u32 erase_buf_ofs;
+	bool partial_start;
 };
 
 struct mtd_erase_region_info {
@@ -322,6 +326,7 @@ struct mtd_info {
 	int (*_block_isreserved) (struct mtd_info *mtd, loff_t ofs);
 	int (*_block_isbad) (struct mtd_info *mtd, loff_t ofs);
 	int (*_block_markbad) (struct mtd_info *mtd, loff_t ofs);
+	int (*_max_bad_blocks) (struct mtd_info *mtd, loff_t ofs, size_t len);
 	int (*_suspend) (struct mtd_info *mtd);
 	void (*_resume) (struct mtd_info *mtd);
 	void (*_reboot) (struct mtd_info *mtd);
@@ -397,6 +402,18 @@ static inline int mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
 	return ops->mode == MTD_OPS_AUTO_OOB ? mtd->oobavail : mtd->oobsize;
 }
 
+static inline int mtd_max_bad_blocks(struct mtd_info *mtd,
+				     loff_t ofs, size_t len)
+{
+	if (!mtd->_max_bad_blocks)
+		return -ENOTSUPP;
+
+	if (mtd->size < (len + ofs) || ofs < 0)
+		return -EINVAL;
+
+	return mtd->_max_bad_blocks(mtd, ofs, len);
+}
+
 int mtd_wunit_to_pairing_info(struct mtd_info *mtd, int wunit,
 			      struct mtd_pairing_info *info);
 int mtd_pairing_info_to_wunit(struct mtd_info *mtd,
@@ -470,6 +487,24 @@ static inline uint32_t mtd_mod_by_eb(uint64_t sz, struct mtd_info *mtd)
 	if (mtd->erasesize_shift)
 		return sz & mtd->erasesize_mask;
 	return do_div(sz, mtd->erasesize);
+}
+
+static inline uint64_t mtd_roundup_to_eb(uint64_t sz, struct mtd_info *mtd)
+{
+	if (mtd_mod_by_eb(sz, mtd) == 0)
+		return sz;
+
+	/* Round up to next erase block */
+	return (mtd_div_by_eb(sz, mtd) + 1) * mtd->erasesize;
+}
+
+static inline uint64_t mtd_rounddown_to_eb(uint64_t sz, struct mtd_info *mtd)
+{
+	if (mtd_mod_by_eb(sz, mtd) == 0)
+		return sz;
+
+	/* Round down to the start of the current erase block */
+	return (mtd_div_by_eb(sz, mtd)) * mtd->erasesize;
 }
 
 static inline uint32_t mtd_div_by_ws(uint64_t sz, struct mtd_info *mtd)

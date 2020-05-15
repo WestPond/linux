@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/74x164.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
@@ -103,8 +104,15 @@ static int gen_74x164_direction_output(struct gpio_chip *gc,
 static int gen_74x164_probe(struct spi_device *spi)
 {
 	struct gen_74x164_chip *chip;
+	struct gen_74x164_chip_platform_data *pdata = spi->dev.platform_data;
+	struct device_node *np = spi->dev.of_node;
 	u32 nregs;
 	int ret;
+
+	if (!np && !pdata) {
+		dev_err(&spi->dev, "No configuration data available.\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * bits_per_word cannot be configured in platform data
@@ -115,12 +123,15 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	if (of_property_read_u32(spi->dev.of_node, "registers-number",
-				 &nregs)) {
-		dev_err(&spi->dev,
-			"Missing registers-number property in the DT.\n");
-		return -EINVAL;
-	}
+	if (np) {
+		if (of_property_read_u32(np, "registers-number", &nregs)) {
+			dev_err(&spi->dev,
+				"Missing registers-number property in the DT.\n");
+			return -EINVAL;
+		}
+	} else if (pdata) {
+		nregs = pdata->num_registers;
+ 	}
 
 	chip = devm_kzalloc(&spi->dev, sizeof(*chip) + nregs, GFP_KERNEL);
 	if (!chip)
@@ -133,7 +144,11 @@ static int gen_74x164_probe(struct spi_device *spi)
 	chip->gpio_chip.get = gen_74x164_get_value;
 	chip->gpio_chip.set = gen_74x164_set_value;
 	chip->gpio_chip.set_multiple = gen_74x164_set_multiple;
-	chip->gpio_chip.base = -1;
+	if (np)
+		chip->gpio_chip.base = -1;
+	else if (pdata)
+		chip->gpio_chip.base = pdata->base;
+
 
 	chip->registers = nregs;
 	chip->gpio_chip.ngpio = GEN_74X164_NUMBER_GPIOS * chip->registers;
@@ -141,6 +156,9 @@ static int gen_74x164_probe(struct spi_device *spi)
 	chip->gpio_chip.can_sleep = true;
 	chip->gpio_chip.parent = &spi->dev;
 	chip->gpio_chip.owner = THIS_MODULE;
+
+	if (pdata && pdata->init_data)
+		memcpy(chip->buffer, pdata->init_data, chip->registers);
 
 	mutex_init(&chip->lock);
 
@@ -170,17 +188,19 @@ static int gen_74x164_remove(struct spi_device *spi)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id gen_74x164_dt_ids[] = {
 	{ .compatible = "fairchild,74hc595" },
 	{ .compatible = "nxp,74lvc594" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, gen_74x164_dt_ids);
+#endif
 
 static struct spi_driver gen_74x164_driver = {
 	.driver = {
 		.name		= "74x164",
-		.of_match_table	= gen_74x164_dt_ids,
+		.of_match_table	= of_match_ptr(gen_74x164_dt_ids),
 	},
 	.probe		= gen_74x164_probe,
 	.remove		= gen_74x164_remove,

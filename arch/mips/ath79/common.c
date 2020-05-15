@@ -38,7 +38,7 @@ unsigned int ath79_soc_rev;
 void __iomem *ath79_pll_base;
 void __iomem *ath79_reset_base;
 EXPORT_SYMBOL_GPL(ath79_reset_base);
-static void __iomem *ath79_ddr_base;
+void __iomem *ath79_ddr_base;
 static void __iomem *ath79_ddr_wb_flush_base;
 static void __iomem *ath79_ddr_pci_win_base;
 
@@ -103,10 +103,14 @@ void ath79_device_reset_set(u32 mask)
 		reg = AR933X_RESET_REG_RESET_MODULE;
 	else if (soc_is_ar934x())
 		reg = AR934X_RESET_REG_RESET_MODULE;
+	else if (soc_is_qca953x())
+		reg = QCA953X_RESET_REG_RESET_MODULE;
 	else if (soc_is_qca955x())
 		reg = QCA955X_RESET_REG_RESET_MODULE;
+	else if (soc_is_qca956x() || soc_is_tp9343())
+		reg = QCA956X_RESET_REG_RESET_MODULE;
 	else
-		BUG();
+		panic("Reset register not defined for this SOC");
 
 	spin_lock_irqsave(&ath79_device_reset_lock, flags);
 	t = ath79_reset_rr(reg);
@@ -131,10 +135,14 @@ void ath79_device_reset_clear(u32 mask)
 		reg = AR933X_RESET_REG_RESET_MODULE;
 	else if (soc_is_ar934x())
 		reg = AR934X_RESET_REG_RESET_MODULE;
+	else if (soc_is_qca953x())
+		reg = QCA953X_RESET_REG_RESET_MODULE;
 	else if (soc_is_qca955x())
 		reg = QCA955X_RESET_REG_RESET_MODULE;
+	else if (soc_is_qca956x() || soc_is_tp9343())
+		reg = QCA956X_RESET_REG_RESET_MODULE;
 	else
-		BUG();
+		panic("Reset register not defined for this SOC");
 
 	spin_lock_irqsave(&ath79_device_reset_lock, flags);
 	t = ath79_reset_rr(reg);
@@ -142,3 +150,31 @@ void ath79_device_reset_clear(u32 mask)
 	spin_unlock_irqrestore(&ath79_device_reset_lock, flags);
 }
 EXPORT_SYMBOL_GPL(ath79_device_reset_clear);
+
+u32 ath79_device_reset_get(u32 mask)
+{
+	unsigned long flags;
+	u32 reg;
+	u32 ret;
+
+	if (soc_is_ar71xx())
+		reg = AR71XX_RESET_REG_RESET_MODULE;
+	else if (soc_is_ar724x())
+		reg = AR724X_RESET_REG_RESET_MODULE;
+	else if (soc_is_ar913x())
+		reg = AR913X_RESET_REG_RESET_MODULE;
+	else if (soc_is_ar933x())
+		reg = AR933X_RESET_REG_RESET_MODULE;
+	else if (soc_is_ar934x())
+		reg = AR934X_RESET_REG_RESET_MODULE;
+	else if (soc_is_qca956x() || soc_is_tp9343())
+		reg = QCA956X_RESET_REG_RESET_MODULE;
+	else
+		BUG();
+
+	spin_lock_irqsave(&ath79_device_reset_lock, flags);
+	ret = ath79_reset_rr(reg);
+	spin_unlock_irqrestore(&ath79_device_reset_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ath79_device_reset_get);

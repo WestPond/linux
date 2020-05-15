@@ -155,9 +155,11 @@ static ssize_t m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 		msg.data_nbits = m25p80_rx_nbits(nor);
 
 		ret = spi_flash_read(spi, &msg);
-		if (ret < 0)
-			return ret;
-		return msg.retlen;
+		if (ret != -EOPNOTSUPP) {
+			if (ret < 0)
+				return ret;
+			return msg.retlen;
+		}
 	}
 
 	spi_message_init(&m);
@@ -193,6 +195,7 @@ static ssize_t m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
  */
 static int m25p_probe(struct spi_device *spi)
 {
+	struct mtd_part_parser_data	ppdata = {0,};
 	struct flash_platform_data	*data;
 	struct m25p *flash;
 	struct spi_nor *nor;
@@ -245,8 +248,11 @@ static int m25p_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	return mtd_device_register(&nor->mtd, data ? data->parts : NULL,
-				   data ? data->nr_parts : 0);
+	return mtd_device_parse_register(&nor->mtd,
+			data ? data->part_probes : NULL,
+			&ppdata,
+			data ? data->parts : NULL,
+ 			data ? data->nr_parts : 0);
 }
 
 

@@ -78,14 +78,16 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
-	if (spi->chip_select) {
+	if (gpio_is_valid(spi->cs_gpio)) {
 		/* SPI is normally active-low */
-		gpio_set_value(spi->cs_gpio, cs_high);
+		gpio_set_value_cansleep(spi->cs_gpio, cs_high);
 	} else {
+		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
+
 		if (cs_high)
-			sp->ioc_base |= AR71XX_SPI_IOC_CS0;
+			sp->ioc_base |= cs_bit;
 		else
-			sp->ioc_base &= ~AR71XX_SPI_IOC_CS0;
+			sp->ioc_base &= ~cs_bit;
 
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
@@ -100,9 +102,6 @@ static void ath79_spi_enable(struct ath79_spi *sp)
 	/* save CTRL register */
 	sp->reg_ctrl = ath79_spi_rr(sp, AR71XX_SPI_REG_CTRL);
 	sp->ioc_base = ath79_spi_rr(sp, AR71XX_SPI_REG_IOC);
-
-	/* TODO: setup speed? */
-	ath79_spi_wr(sp, AR71XX_SPI_REG_CTRL, 0x43);
 }
 
 static void ath79_spi_disable(struct ath79_spi *sp)
@@ -118,11 +117,8 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	int status;
 
-	if (spi->chip_select && !gpio_is_valid(spi->cs_gpio))
-		return -EINVAL;
-
 	status = 0;
-	if (spi->chip_select) {
+	if (gpio_is_valid(spi->cs_gpio)) {
 		unsigned long flags;
 
 		flags = GPIOF_DIR_OUT;
@@ -134,10 +130,12 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 		status = gpio_request_one(spi->cs_gpio, flags,
 					  dev_name(&spi->dev));
 	} else {
+		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
+
 		if (spi->mode & SPI_CS_HIGH)
-			sp->ioc_base &= ~AR71XX_SPI_IOC_CS0;
+			sp->ioc_base &= ~cs_bit;
 		else
-			sp->ioc_base |= AR71XX_SPI_IOC_CS0;
+			sp->ioc_base |= cs_bit;
 
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
@@ -147,7 +145,7 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 
 static void ath79_spi_cleanup_cs(struct spi_device *spi)
 {
-	if (spi->chip_select) {
+	if (gpio_is_valid(spi->cs_gpio)) {
 		gpio_free(spi->cs_gpio);
 	}
 }
@@ -204,6 +202,38 @@ static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned nsecs,
 	return ath79_spi_rr(sp, AR71XX_SPI_REG_RDS);
 }
 
+static bool ath79_spi_flash_read_supported(struct spi_device *spi)
+{
+	if (spi->chip_select || gpio_is_valid(spi->cs_gpio))
+		return false;
+
+	return true;
+}
+
+static int ath79_spi_read_flash_data(struct spi_device *spi,
+				     struct spi_flash_read_message *msg)
+{
+	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
+
+	if (msg->addr_width > 3)
+		return -EOPNOTSUPP;
+
+	/* disable GPIO mode */
+	ath79_spi_wr(sp, AR71XX_SPI_REG_FS, 0);
+
+	memcpy_fromio(msg->buf, sp->base + msg->from, msg->len);
+
+	/* enable GPIO mode */
+	ath79_spi_wr(sp, AR71XX_SPI_REG_FS, AR71XX_SPI_FS_GPIO);
+
+	/* restore IOC register */
+	ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
+
+	msg->retlen = msg->len;
+
+	return 0;
+}
+
 static int ath79_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
@@ -231,7 +261,10 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	if (pdata) {
 		master->bus_num = pdata->bus_num;
 		master->num_chipselect = pdata->num_chipselect;
+		master->cs_gpios = pdata->cs_gpios;
 	}
+	master->spi_flash_read = ath79_spi_read_flash_data;
+	master->flash_read_supported = ath79_spi_flash_read_supported;
 
 	sp->bitbang.master = master;
 	sp->bitbang.chipselect = ath79_spi_chipselect;

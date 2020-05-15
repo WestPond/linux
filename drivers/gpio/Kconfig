@@ -1154,7 +1154,6 @@ menu "SPI GPIO expanders"
 
 config GPIO_74X164
 	tristate "74x164 serial-in/parallel-out 8-bits shift register"
-	depends on OF_GPIO
 	help
 	  Driver for 74x164 compatible serial-in/parallel-out 8-outputs
 	  shift registers. This driver can be used to provide access
@@ -1212,5 +1211,18 @@ config GPIO_VIPERBOARD
           of the module parameters.
 
 endmenu
+
+comment "Other GPIO expanders"
+
+config GPIO_NXP_74HC153
+	tristate "NXP 74HC153 Dual 4-input multiplexer"
+	help
+	  Platform driver for NXP 74HC153 Dual 4-input Multiplexer. This
+	  provides a GPIO interface supporting input mode only.
+
+config GPIO_LATCH
+	tristate "GPIO latch driver"
+	help
+	  Say yes here to enable a GPIO latch driver.
 
 endif

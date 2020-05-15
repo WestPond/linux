@@ -39,6 +39,7 @@
 #include <linux/ipsec.h>
 #include <linux/times.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 #include <linux/uaccess.h>
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
@@ -404,7 +405,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!sock_owned_by_user(sk))
 			tcp_v6_mtu_reduced(sk);
 		else if (!test_and_set_bit(TCP_MTU_REDUCED_DEFERRED,
-					   &tp->tsq_flags))
+					   &sk->sk_tsq_flags))
 			sock_hold(sk);
 		goto out;
 	}
@@ -796,10 +797,10 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	topt = (__be32 *)(t1 + 1);
 
 	if (tsecr) {
-		*topt++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
-				(TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
-		*topt++ = htonl(tsval);
-		*topt++ = htonl(tsecr);
+		put_unaligned_be32((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
+				(TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP, topt++);
+		put_unaligned_be32(tsval, topt++);
+		put_unaligned_be32(tsecr, topt++);
 	}
 
 #ifdef CONFIG_TCP_MD5SIG

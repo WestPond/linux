@@ -19,11 +19,19 @@
 #define ATH79_MEM_SIZE_MIN	(2 * 1024 * 1024)
 #define ATH79_MEM_SIZE_MAX	(256 * 1024 * 1024)
 
+extern void __iomem *ath79_ddr_base;
+
 void ath79_clocks_init(void);
 unsigned long ath79_get_sys_clk_rate(const char *id);
 
 void ath79_ddr_ctrl_init(void);
 
+void ath79_gpio_function_enable(u32 mask);
+void ath79_gpio_function_disable(u32 mask);
+void ath79_gpio_function_setup(u32 set, u32 clear);
+void ath79_gpio_function2_setup(u32 set, u32 clear);
+void ath79_gpio_output_select(unsigned gpio, u8 val);
+int ath79_gpio_direction_select(unsigned gpio, bool oe);
 void ath79_gpio_init(void);
 
 #endif /* __ATH79_COMMON_H */

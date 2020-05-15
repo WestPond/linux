@@ -11,6 +11,7 @@
 
 #include <linux/bcma/bcma.h>
 #include <linux/etherdevice.h>
+#include <linux/platform_data/b53.h>
 #include <linux/bcm47xx_nvram.h>
 #include "bgmac.h"
 
@@ -1146,7 +1147,7 @@ static int bgmac_poll(struct napi_struct *napi, int weight)
 		return weight;
 
 	if (handled < weight) {
-		napi_complete(napi);
+		napi_complete_done(napi, handled);
 		bgmac_chip_intrs_on(bgmac);
 	}
 
@@ -1388,6 +1389,17 @@ static const struct ethtool_ops bgmac_ethtool_ops = {
 	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
 };
 
+static struct b53_platform_data bgmac_b53_pdata = {
+};
+
+static struct platform_device bgmac_b53_dev = {
+	.name		= "b53-srab-switch",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &bgmac_b53_pdata,
+	},
+};
+
 /**************************************************
  * MII
  **************************************************/
@@ -1460,22 +1472,32 @@ static int bgmac_phy_connect(struct bgmac *bgmac)
 	return 0;
 }
 
-int bgmac_enet_probe(struct bgmac *info)
+struct bgmac *bgmac_alloc(struct device *dev)
 {
 	struct net_device *net_dev;
 	struct bgmac *bgmac;
-	int err;
 
 	/* Allocation and references */
-	net_dev = alloc_etherdev(sizeof(*bgmac));
+	net_dev = devm_alloc_etherdev(dev, sizeof(*bgmac));
 	if (!net_dev)
-		return -ENOMEM;
+		return NULL;
 
 	net_dev->netdev_ops = &bgmac_netdev_ops;
 	net_dev->ethtool_ops = &bgmac_ethtool_ops;
+
 	bgmac = netdev_priv(net_dev);
-	memcpy(bgmac, info, sizeof(*bgmac));
+	bgmac->dev = dev;
 	bgmac->net_dev = net_dev;
+
+	return bgmac;
+}
+EXPORT_SYMBOL_GPL(bgmac_alloc);
+
+int bgmac_enet_probe(struct bgmac *bgmac)
+{
+	struct net_device *net_dev = bgmac->net_dev;
+	int err;
+
 	net_dev->irq = bgmac->irq;
 	SET_NETDEV_DEV(net_dev, bgmac->dev);
 
@@ -1502,7 +1524,7 @@ int bgmac_enet_probe(struct bgmac *info)
 	err = bgmac_dma_alloc(bgmac);
 	if (err) {
 		dev_err(bgmac->dev, "Unable to alloc memory for DMA\n");
-		goto err_netdev_free;
+		goto err_out;
 	}
 
 	bgmac->int_mask = BGMAC_IS_ERRMASK | BGMAC_IS_RX | BGMAC_IS_TX_MASK;
@@ -1524,6 +1546,14 @@ int bgmac_enet_probe(struct bgmac *info)
 	net_dev->hw_features = net_dev->features;
 	net_dev->vlan_features = net_dev->features;
 
+	if ((bgmac->feature_flags & BGMAC_FEAT_SRAB) && !bgmac_b53_pdata.regs) {
+		bgmac_b53_pdata.regs = ioremap_nocache(0x18007000, 0x1000);
+
+		err = platform_device_register(&bgmac_b53_dev);
+		if (!err)
+			bgmac->b53_device = &bgmac_b53_dev;
+	}
+
 	err = register_netdev(bgmac->net_dev);
 	if (err) {
 		dev_err(bgmac->dev, "Cannot register net device\n");
@@ -1538,8 +1568,7 @@ err_phy_disconnect:
 	phy_disconnect(net_dev->phydev);
 err_dma_free:
 	bgmac_dma_free(bgmac);
-err_netdev_free:
-	free_netdev(net_dev);
+err_out:
 
 	return err;
 }
@@ -1547,6 +1576,10 @@ EXPORT_SYMBOL_GPL(bgmac_enet_probe);
 
 void bgmac_enet_remove(struct bgmac *bgmac)
 {
+	if (bgmac->b53_device)
+		platform_device_unregister(&bgmac_b53_dev);
+	bgmac->b53_device = NULL;
+
 	unregister_netdev(bgmac->net_dev);
 	phy_disconnect(bgmac->net_dev->phydev);
 	netif_napi_del(&bgmac->napi);

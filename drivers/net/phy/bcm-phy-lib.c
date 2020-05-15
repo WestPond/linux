@@ -17,6 +17,7 @@
 #include <linux/mdio.h>
 #include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/ethtool.h>
 
 #define MII_BCM_CHANNEL_WIDTH     0x2000
 #define BCM_CL45VEN_EEE_ADV       0x3c
@@ -49,6 +50,23 @@ int bcm_phy_read_exp(struct phy_device *phydev, u16 reg)
 	return val;
 }
 EXPORT_SYMBOL_GPL(bcm_phy_read_exp);
+
+int bcm54xx_auxctl_read(struct phy_device *phydev, u16 regnum)
+{
+	/* The register must be written to both the Shadow Register Select and
+	 * the Shadow Read Register Selector
+	 */
+	phy_write(phydev, MII_BCM54XX_AUX_CTL, regnum |
+		  regnum << MII_BCM54XX_AUXCTL_SHDWSEL_READ_SHIFT);
+	return phy_read(phydev, MII_BCM54XX_AUX_CTL);
+}
+EXPORT_SYMBOL_GPL(bcm54xx_auxctl_read);
+
+int bcm54xx_auxctl_write(struct phy_device *phydev, u16 regnum, u16 val)
+{
+	return phy_write(phydev, MII_BCM54XX_AUX_CTL, regnum | val);
+}
+EXPORT_SYMBOL(bcm54xx_auxctl_write);
 
 int bcm_phy_write_misc(struct phy_device *phydev,
 		       u16 reg, u16 chl, u16 val)
@@ -178,7 +196,7 @@ int bcm_phy_enable_apd(struct phy_device *phydev, bool dll_pwr_down)
 }
 EXPORT_SYMBOL_GPL(bcm_phy_enable_apd);
 
-int bcm_phy_enable_eee(struct phy_device *phydev)
+int bcm_phy_set_eee(struct phy_device *phydev, bool enable)
 {
 	int val;
 
@@ -188,7 +206,10 @@ int bcm_phy_enable_eee(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
+	if (enable)
+		val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
+	else
+		val &= ~(LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X);
 
 	phy_write_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
 			       MDIO_MMD_AN, (u32)val);
@@ -199,14 +220,86 @@ int bcm_phy_enable_eee(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+	if (enable)
+		val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+	else
+		val &= ~(MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
 
 	phy_write_mmd_indirect(phydev, BCM_CL45VEN_EEE_ADV,
 			       MDIO_MMD_AN, (u32)val);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(bcm_phy_enable_eee);
+EXPORT_SYMBOL_GPL(bcm_phy_set_eee);
+
+struct bcm_phy_hw_stat {
+	const char *string;
+	u8 reg;
+	u8 shift;
+	u8 bits;
+};
+
+/* Counters freeze at either 0xffff or 0xff, better than nothing */
+static const struct bcm_phy_hw_stat bcm_phy_hw_stats[] = {
+	{ "phy_receive_errors", MII_BRCM_CORE_BASE12, 0, 16 },
+	{ "phy_serdes_ber_errors", MII_BRCM_CORE_BASE13, 8, 8 },
+	{ "phy_false_carrier_sense_errors", MII_BRCM_CORE_BASE13, 0, 8 },
+	{ "phy_local_rcvr_nok", MII_BRCM_CORE_BASE14, 8, 8 },
+	{ "phy_remote_rcv_nok", MII_BRCM_CORE_BASE14, 0, 8 },
+};
+
+int bcm_phy_get_sset_count(struct phy_device *phydev)
+{
+	return ARRAY_SIZE(bcm_phy_hw_stats);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_get_sset_count);
+
+void bcm_phy_get_strings(struct phy_device *phydev, u8 *data)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(bcm_phy_hw_stats); i++)
+		memcpy(data + i * ETH_GSTRING_LEN,
+		       bcm_phy_hw_stats[i].string, ETH_GSTRING_LEN);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_get_strings);
+
+#ifndef UINT64_MAX
+#define UINT64_MAX              (u64)(~((u64)0))
+#endif
+
+/* Caller is supposed to provide appropriate storage for the library code to
+ * access the shadow copy
+ */
+static u64 bcm_phy_get_stat(struct phy_device *phydev, u64 *shadow,
+			    unsigned int i)
+{
+	struct bcm_phy_hw_stat stat = bcm_phy_hw_stats[i];
+	int val;
+	u64 ret;
+
+	val = phy_read(phydev, stat.reg);
+	if (val < 0) {
+		ret = UINT64_MAX;
+	} else {
+		val >>= stat.shift;
+		val = val & ((1 << stat.bits) - 1);
+		shadow[i] += val;
+		ret = shadow[i];
+	}
+
+	return ret;
+}
+
+void bcm_phy_get_stats(struct phy_device *phydev, u64 *shadow,
+		       struct ethtool_stats *stats, u64 *data)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(bcm_phy_hw_stats); i++)
+		data[i] = bcm_phy_get_stat(phydev, shadow, i);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_get_stats);
 
 MODULE_DESCRIPTION("Broadcom PHY Library");
 MODULE_LICENSE("GPL v2");

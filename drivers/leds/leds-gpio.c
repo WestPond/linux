@@ -77,7 +77,7 @@ static int gpio_blink_set(struct led_classdev *led_cdev,
 
 static int create_gpio_led(const struct gpio_led *template,
 	struct gpio_led_data *led_dat, struct device *parent,
-	gpio_blink_set_t blink_set)
+	struct device_node *np, gpio_blink_set_t blink_set)
 {
 	int ret, state;
 
@@ -99,6 +99,12 @@ static int create_gpio_led(const struct gpio_led *template,
 
 		if (template->active_low)
 			flags |= GPIOF_ACTIVE_LOW;
+
+		if (template->open_drain)
+			flags |= GPIOF_OPEN_DRAIN;
+
+		if (template->open_source)
+			flags |= GPIOF_OPEN_SOURCE;
 
 		ret = devm_gpio_request_one(parent, template->gpio, flags,
 					    template->name);
@@ -139,7 +145,7 @@ static int create_gpio_led(const struct gpio_led *template,
 	if (ret < 0)
 		return ret;
 
-	return devm_led_classdev_register(parent, &led_dat->cdev);
+	return devm_of_led_classdev_register(parent, np, &led_dat->cdev);
 }
 
 struct gpio_leds_priv {
@@ -206,7 +212,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		if (fwnode_property_present(child, "panic-indicator"))
 			led.panic_indicator = 1;
 
-		ret = create_gpio_led(&led, led_dat, dev, NULL);
+		ret = create_gpio_led(&led, led_dat, dev, np, NULL);
 		if (ret < 0) {
 			fwnode_handle_put(child);
 			return ERR_PTR(ret);
@@ -240,9 +246,9 @@ static int gpio_led_probe(struct platform_device *pdev)
 
 		priv->num_leds = pdata->num_leds;
 		for (i = 0; i < priv->num_leds; i++) {
-			ret = create_gpio_led(&pdata->leds[i],
-					      &priv->leds[i],
-					      &pdev->dev, pdata->gpio_blink_set);
+			ret = create_gpio_led(&pdata->leds[i], &priv->leds[i],
+					      &pdev->dev, NULL,
+					      pdata->gpio_blink_set);
 			if (ret < 0)
 				return ret;
 		}

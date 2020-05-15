@@ -81,7 +81,7 @@ struct icmphdr {
 	} frag;
 	__u8	reserved[4];
   } un;
-};
+} __attribute__((packed, aligned(2)));
 
 
 /*

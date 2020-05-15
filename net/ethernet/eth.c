@@ -143,6 +143,18 @@ u32 eth_get_headlen(void *data, unsigned int len)
 }
 EXPORT_SYMBOL(eth_get_headlen);
 
+static inline bool
+eth_check_local_mask(const void *addr1, const void *addr2, const void *mask)
+{
+	const u16 *a1 = addr1;
+	const u16 *a2 = addr2;
+	const u16 *m = mask;
+
+	return (((a1[0] ^ a2[0]) & ~m[0]) |
+		((a1[1] ^ a2[1]) & ~m[1]) |
+		((a1[2] ^ a2[2]) & ~m[2]));
+}
+
 /**
  * eth_type_trans - determine the packet's protocol ID.
  * @skb: received socket data
@@ -159,6 +171,12 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	const struct ethhdr *eth;
 
 	skb->dev = dev;
+
+#ifdef CONFIG_ETHERNET_PACKET_MANGLE
+	if (dev->eth_mangle_rx)
+		dev->eth_mangle_rx(dev, skb);
+#endif
+
 	skb_reset_mac_header(skb);
 
 	eth = (struct ethhdr *)skb->data;
@@ -171,8 +189,12 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 			skb->pkt_type = PACKET_MULTICAST;
 	}
 	else if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
-						   dev->dev_addr)))
+						   dev->dev_addr))) {
 		skb->pkt_type = PACKET_OTHERHOST;
+		if (eth_check_local_mask(eth->h_dest, dev->dev_addr,
+					 dev->local_addr_mask))
+			skb->gro_skip = 1;
+	}
 
 	/*
 	 * Some variants of DSA tagging don't have an ethertype field
@@ -390,6 +412,34 @@ struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
 				ether_setup, txqs, rxqs);
 }
 EXPORT_SYMBOL(alloc_etherdev_mqs);
+
+static void devm_free_netdev(struct device *dev, void *res)
+{
+	free_netdev(*(struct net_device **)res);
+}
+
+struct net_device *devm_alloc_etherdev_mqs(struct device *dev, int sizeof_priv,
+					   unsigned int txqs, unsigned int rxqs)
+{
+	struct net_device **dr;
+	struct net_device *netdev;
+
+	dr = devres_alloc(devm_free_netdev, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return NULL;
+
+	netdev = alloc_etherdev_mqs(sizeof_priv, txqs, rxqs);
+	if (!netdev) {
+		devres_free(dr);
+		return NULL;
+	}
+
+	*dr = netdev;
+	devres_add(dev, dr);
+
+	return netdev;
+}
+EXPORT_SYMBOL(devm_alloc_etherdev_mqs);
 
 ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len)
 {

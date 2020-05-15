@@ -1789,15 +1789,15 @@ static int vxlan_build_skb(struct sk_buff *skb, struct dst_entry *dst,
 		goto out_free;
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
-	vxh->vx_flags = VXLAN_HF_VNI;
-	vxh->vx_vni = vxlan_vni_field(vni);
+	net_hdr_word(&vxh->vx_flags) = VXLAN_HF_VNI;
+	net_hdr_word(&vxh->vx_vni) = vxlan_vni_field(vni);
 
 	if (type & SKB_GSO_TUNNEL_REMCSUM) {
 		unsigned int start;
 
 		start = skb_checksum_start_offset(skb) - sizeof(struct vxlanhdr);
-		vxh->vx_vni |= vxlan_compute_rco(start, skb->csum_offset);
-		vxh->vx_flags |= VXLAN_HF_RCO;
+		net_hdr_word(&vxh->vx_vni) |= vxlan_compute_rco(start, skb->csum_offset);
+		net_hdr_word(&vxh->vx_flags) |= VXLAN_HF_RCO;
 
 		if (!skb_is_gso(skb)) {
 			skb->ip_summed = CHECKSUM_NONE;

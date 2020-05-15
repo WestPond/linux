@@ -55,6 +55,7 @@ config MIPS
 	select CLONE_BACKWARDS
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_CC_STACKPROTECTOR
+	select LD_DEAD_CODE_DATA_ELIMINATION
 	select CPU_PM if CPU_IDLE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_BINFMT_ELF_STATE
@@ -195,7 +196,6 @@ config ATH79
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_ZBOOT_UART_PROM
-	select USE_OF
 	help
 	  Support for the Atheros AR71XX/AR724X/AR913X SoCs.
 
@@ -214,6 +214,7 @@ config BMIPS_GENERIC
 	select BRCMSTB_L2_IRQ
 	select IRQ_MIPS_CPU
 	select DMA_NONCOHERENT
+	select DMA_UNMAP_POST_FLUSH
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -339,6 +340,7 @@ config MACH_JAZZ
 	select CSRC_R4K
 	select DEFAULT_SGI_PARTITION if CPU_BIG_ENDIAN
 	select GENERIC_ISA_DMA
+	select DMA_UNMAP_POST_FLUSH
 	select HAVE_PCSPKR_PLATFORM
 	select IRQ_MIPS_CPU
 	select I8253
@@ -1065,9 +1067,6 @@ config FW_ARC
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 
-config BOOT_RAW
-	bool
-
 config CEVT_BCM1480
 	bool
 
@@ -1129,6 +1128,9 @@ config DMA_NONCOHERENT
 	bool
 	select NEED_DMA_MAP_STATE
 
+config DMA_UNMAP_POST_FLUSH
+	bool
+
 config NEED_DMA_MAP_STATE
 	bool
 
@@ -1147,11 +1149,18 @@ config MIPS_MSC
 config MIPS_NILE4
 	bool
 
+config MYLOADER
+	bool
+
 config SYNC_R4K
 	bool
 
 config MIPS_MACHINE
 	def_bool n
+
+config IMAGE_CMDLINE_HACK
+	bool "OpenWrt specific image command line hack"
+	default n
 
 config NO_IOPORT_MAP
 	def_bool n
@@ -1653,6 +1662,7 @@ config CPU_R10000
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
+	select DMA_UNMAP_POST_FLUSH
 	help
 	  MIPS Technologies R10000-series processors.
 
@@ -1898,9 +1908,11 @@ config SYS_HAS_CPU_MIPS32_R3_5
 	bool
 
 config SYS_HAS_CPU_MIPS32_R5
+	select DMA_UNMAP_POST_FLUSH
 	bool
 
 config SYS_HAS_CPU_MIPS32_R6
+	select DMA_UNMAP_POST_FLUSH
 	bool
 
 config SYS_HAS_CPU_MIPS64_R1
@@ -1910,6 +1922,7 @@ config SYS_HAS_CPU_MIPS64_R2
 	bool
 
 config SYS_HAS_CPU_MIPS64_R6
+	select DMA_UNMAP_POST_FLUSH
 	bool
 
 config SYS_HAS_CPU_R3000
@@ -2891,6 +2904,20 @@ config MIPS_O32_FP64_SUPPORT
 
 	  If unsure, say N.
 
+config MIPS_FPU_EMULATOR
+	bool "MIPS FPU Emulator"
+	default y
+	help
+	  This option lets you disable the built-in MIPS FPU (Coprocessor 1)
+	  emulator, which handles floating-point instructions on processors
+	  without a hardware FPU.  It is generally a good idea to keep the
+	  emulator built-in, unless you are perfectly sure you have a
+	  complete soft-float environment.  With the emulator disabled, all
+	  users of float operations will be killed with an illegal instr-
+	  uction exception.
+
+	  Say Y, please.
+
 config USE_OF
 	bool
 	select OF
@@ -2963,6 +2990,18 @@ choice
 		depends on CMDLINE_BOOL
 		bool "Extend builtin kernel arguments with bootloader arguments"
 endchoice
+
+config BOOT_RAW
+	bool "Enable the kernel to be executed from the load address"
+	default n
+	help
+	 Allow the kernel to be executed from the load address for
+	 bootloaders which cannot read the ELF format. This places
+	 a jump to start_kernel at the load address.
+
+	 If unsure, say N.
+
+
 
 endmenu
 

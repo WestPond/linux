@@ -574,7 +574,7 @@ static bool ipv6_hop_jumbo(struct sk_buff *skb, int optoff)
 		goto drop;
 	}
 
-	pkt_len = ntohl(*(__be32 *)(nh + optoff + 2));
+	pkt_len = ntohl(net_hdr_word(nh + optoff + 2));
 	if (pkt_len <= IPV6_MAXPLEN) {
 		__IP6_INC_STATS(net, ipv6_skb_idev(skb),
 				IPSTATS_MIB_INHDRERRORS);
@@ -729,13 +729,13 @@ void ipv6_push_nfrag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt,
 	if (opt->hopopt)
 		ipv6_push_exthdr(skb, proto, NEXTHDR_HOP, opt->hopopt);
 }
-EXPORT_SYMBOL(ipv6_push_nfrag_opts);
 
 void ipv6_push_frag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt, u8 *proto)
 {
 	if (opt->dst1opt)
 		ipv6_push_exthdr(skb, proto, NEXTHDR_DEST, opt->dst1opt);
 }
+EXPORT_SYMBOL(ipv6_push_frag_opts);
 
 struct ipv6_txoptions *
 ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt)

@@ -1,0 +1,1 @@
+obj-$(CONFIG_MTD_NAND_SPI_NAND) += generic-spinand-controller.o core.o bbt.o nand_core.o micron.o etron.o gigadevice.o paragon.o

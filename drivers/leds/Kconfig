@@ -606,6 +606,13 @@ config LEDS_IS31FL32XX
 
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 
+config LEDS_NU801
+	tristate "LED driver for NU801 RGB LED"
+	depends on LEDS_CLASS && (ATH79_MACH_MR18 || ATH79_MACH_Z1)
+	help
+	  This option enables support for NU801 RGB LED driver chips
+	  accessed via GPIO.
+
 config LEDS_BLINKM
 	tristate "LED support for the BlinkM I2C RGB LED"
 	depends on LEDS_CLASS
@@ -658,6 +665,17 @@ config LEDS_MLXCPLD
 	help
 	  This option enabled support for the LEDs on the Mellanox
 	  boards. Say Y to enabled these.
+
+config LEDS_WNDR3700_USB
+	tristate "NETGEAR WNDR3700 USB LED driver"
+	depends on LEDS_CLASS && ATH79_MACH_WNDR3700
+	help
+	  This option enables support for the USB LED found on the
+	  NETGEAR WNDR3700 board.
+
+config LEDS_RB750
+	tristate "LED driver for the Mikrotik RouterBOARD 750"
+	depends on LEDS_CLASS && ATH79_MACH_RB750
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
