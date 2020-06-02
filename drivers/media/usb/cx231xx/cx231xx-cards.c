@@ -351,8 +351,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = I2C_1_MUX_1,
-		.demod_i2c_master = I2C_1_MUX_1,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
 		.demod_addr = 0x0e,
 		.norm = V4L2_STD_NTSC,
@@ -1560,6 +1560,15 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and initialize it */
 	dev = devm_kzalloc(&udev->dev, sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
+		retval = -ENOMEM;
+		goto err_if;
+	}
+
+	/* allocate urb buf so it is aligned correctly for DMA. Fixes a
+	 * crash on MIPS
+	 */
+	dev->urb_buf = devm_kzalloc(&udev->dev, URB_MAX_CTRL_SIZE, GFP_KERNEL);
+	if (dev->urb_buf == NULL) {
 		retval = -ENOMEM;
 		goto err_if;
 	}

@@ -677,7 +677,7 @@ struct cx231xx {
 	atomic_t devlist_count;
 
 	struct usb_device *udev;	/* the usb device */
-	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
+	char *urb_buf;	/* urb control msg buffer URB_MAX_CTRL_SIZE */
 
 	/* helper funcs that call usb_control_msg */
 	int (*cx231xx_read_ctrl_reg) (struct cx231xx *dev, u8 req, u16 reg,
