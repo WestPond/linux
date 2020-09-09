@@ -413,10 +413,10 @@ static int idt5v_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (src_sel == 0x10) {
 		if (clk_port->clk_id == 1) {
 			ret = idt5v_reg_write(clk_port->drvdata->client,
-				0x75, 0x02, 1 );
+				0x75, 0x02, 0 );
 		} else if(clk_port->clk_id == 3) {
 			ret = idt5v_reg_write(clk_port->drvdata->client,
-				0x75, 0x01, 1 );
+				0x75, 0x01, 0 );
 		} else {
 			ret =  -EINVAL;
 		}
@@ -440,7 +440,7 @@ static int idt5v_set_rate(struct clk_hw *hw, unsigned long rate,
 	case 1:
 		/* Clear output switch */
 		ret = idt5v_reg_write(clk_port->drvdata->client,
-			0x75, 0x02, 0 );
+			0x75, 0x02, 1 );
 		if (ret)
 			return ret;
 
@@ -464,7 +464,7 @@ static int idt5v_set_rate(struct clk_hw *hw, unsigned long rate,
 	case 3:
 		/* Clear output switch */
 		ret = idt5v_reg_write(clk_port->drvdata->client,
-			0x75, 0x01, 0 );
+			0x75, 0x01, 1 );
 		if (ret)
 			return ret;
 
