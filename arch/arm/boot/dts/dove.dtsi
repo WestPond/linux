@@ -803,6 +803,13 @@
 				status = "disabled";
 			};
 
+			dcon: lcd-dcon@830000 {
+				compatible = "marvell,dove-dcon";
+				reg = <0x830000 0x1000>;
+				/* DCON has an interrupt that is unused */
+				status = "disabled";
+			};
+
 			crypto_sram: sa-sram@ffffe000 {
 				compatible = "mmio-sram";
 				reg = <0xffffe000 0x800>;
