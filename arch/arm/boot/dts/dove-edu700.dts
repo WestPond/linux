@@ -117,17 +117,24 @@
 };
 
 &lcd1 {
-	status = "disabled";
+	status = "okay";
 	clocks = <&idt5v 3>;
 	clock-names = "ext_ref_clk1";
 	framebuffer = <&lcd1_fb>;
-/*
 	lcd1_port: port {
 		lcd1_rgb: endpoint {
-			remote-endpoint = <&vga_dac_in>;
+			remote-endpoint = <&vga_conn>;
 		};
 	};
-*/
+};
+
+&dcon {
+	status = "okay";
+	port {
+		vga_conn: endpoint {
+			remote-endpoint = <&lcd1_rgb>;
+		};
+	};
 };
 
 &vmeta {
