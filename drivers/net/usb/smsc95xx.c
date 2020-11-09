@@ -163,116 +163,30 @@ static int __must_check smsc95xx_write_reg(struct usbnet *dev, u32 index,
 	return __smsc95xx_write_reg(dev, index, data, 0);
 }
 
-/* Loop until the read is completed with timeout
- * called with phy_mutex held */
-static int __must_check __smsc95xx_phy_wait_not_busy(struct usbnet *dev,
-						     int in_pm)
-{
-	unsigned long start_time = jiffies;
-	u32 val;
-	int ret;
-
-	do {
-		ret = __smsc95xx_read_reg(dev, MII_ADDR, &val, in_pm);
-		if (ret < 0) {
-			netdev_warn(dev->net, "Error reading MII_ACCESS\n");
-			return ret;
-		}
-
-		if (!(val & MII_BUSY_))
-			return 0;
-	} while (!time_after(jiffies, start_time + HZ));
-
-	return -EIO;
-}
-
 static int __smsc95xx_mdio_read(struct net_device *netdev, int phy_id, int idx,
 				int in_pm)
 {
-	struct usbnet *dev = netdev_priv(netdev);
-	u32 val, addr;
-	int ret;
+	switch (idx) {
+		case MII_MMD_CTRL:
+		case MII_MMD_DATA:
+			return -1;
 
-	mutex_lock(&dev->phy_mutex);
-
-	/* confirm MII not busy */
-	ret = __smsc95xx_phy_wait_not_busy(dev, in_pm);
-	if (ret < 0) {
-		netdev_warn(dev->net, "MII is busy in smsc95xx_mdio_read\n");
-		goto done;
+		case MII_BMCR:
+			return BMCR_FULLDPLX | BMCR_SPEED100;
+		case MII_BMSR:
+			return BMSR_ANEGCAPABLE | BMSR_100FULL | BMSR_LSTATUS | BMSR_ANEGCOMPLETE;
+		case MII_LPA:
+			return LPA_100FULL | LPA_PAUSE_CAP | LPA_PAUSE_ASYM;
+		case MII_ADVERTISE:
+			return ADVERTISE_ALL | ADVERTISE_CSMA | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+		default:
+			return 0;
 	}
-
-	/* set the address, index & direction (read from PHY) */
-	phy_id &= dev->mii.phy_id_mask;
-	idx &= dev->mii.reg_num_mask;
-	addr = (phy_id << 11) | (idx << 6) | MII_READ_ | MII_BUSY_;
-	ret = __smsc95xx_write_reg(dev, MII_ADDR, addr, in_pm);
-	if (ret < 0) {
-		netdev_warn(dev->net, "Error writing MII_ADDR\n");
-		goto done;
-	}
-
-	ret = __smsc95xx_phy_wait_not_busy(dev, in_pm);
-	if (ret < 0) {
-		netdev_warn(dev->net, "Timed out reading MII reg %02X\n", idx);
-		goto done;
-	}
-
-	ret = __smsc95xx_read_reg(dev, MII_DATA, &val, in_pm);
-	if (ret < 0) {
-		netdev_warn(dev->net, "Error reading MII_DATA\n");
-		goto done;
-	}
-
-	ret = (u16)(val & 0xFFFF);
-
-done:
-	mutex_unlock(&dev->phy_mutex);
-	return ret;
 }
 
 static void __smsc95xx_mdio_write(struct net_device *netdev, int phy_id,
 				  int idx, int regval, int in_pm)
-{
-	struct usbnet *dev = netdev_priv(netdev);
-	u32 val, addr;
-	int ret;
-
-	mutex_lock(&dev->phy_mutex);
-
-	/* confirm MII not busy */
-	ret = __smsc95xx_phy_wait_not_busy(dev, in_pm);
-	if (ret < 0) {
-		netdev_warn(dev->net, "MII is busy in smsc95xx_mdio_write\n");
-		goto done;
-	}
-
-	val = regval;
-	ret = __smsc95xx_write_reg(dev, MII_DATA, val, in_pm);
-	if (ret < 0) {
-		netdev_warn(dev->net, "Error writing MII_DATA\n");
-		goto done;
-	}
-
-	/* set the address, index & direction (write to PHY) */
-	phy_id &= dev->mii.phy_id_mask;
-	idx &= dev->mii.reg_num_mask;
-	addr = (phy_id << 11) | (idx << 6) | MII_WRITE_ | MII_BUSY_;
-	ret = __smsc95xx_write_reg(dev, MII_ADDR, addr, in_pm);
-	if (ret < 0) {
-		netdev_warn(dev->net, "Error writing MII_ADDR\n");
-		goto done;
-	}
-
-	ret = __smsc95xx_phy_wait_not_busy(dev, in_pm);
-	if (ret < 0) {
-		netdev_warn(dev->net, "Timed out writing MII reg %02X\n", idx);
-		goto done;
-	}
-
-done:
-	mutex_unlock(&dev->phy_mutex);
-}
+{ }
 
 static int smsc95xx_mdio_read_nopm(struct net_device *netdev, int phy_id,
 				   int idx)
@@ -1278,6 +1192,10 @@ static int smsc95xx_reset(struct usbnet *dev)
 	ret = smsc95xx_write_reg(dev, INT_EP_CTL, read_buf);
 	if (ret < 0)
 		return ret;
+
+	if (!netif_carrier_ok(dev->net)) {
+		usbnet_link_change(dev, 1, 1);
+	}
 
 	ret = smsc95xx_start_tx_path(dev);
 	if (ret < 0) {
