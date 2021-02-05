@@ -422,4 +422,5 @@
 #define USB_PID_EVOLVEO_XTRATV_STICK			0xa115
 #define USB_PID_HAMA_DVBT_HYBRID			0x2758
 #define USB_PID_XBOX_ONE_TUNER                          0x02d5
+#define USB_PID_MA692_TUNER				0xe692
 #endif
