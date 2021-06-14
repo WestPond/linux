@@ -40,6 +40,10 @@ config VIDEO_FIXED_MINOR_RANGES
 
 	  When in doubt, say N.
 
+config VIDEO_DUMMY
+	tristate "Dummy option to build components needed by modules"
+	select VIDEOBUF_DMA_SG
+
 # Used by drivers that need tuner.ko
 config VIDEO_TUNER
 	tristate
