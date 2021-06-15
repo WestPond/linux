@@ -69,6 +69,13 @@ config DVB_MXL5XX
 
 	  Say Y when you want to support these frontends.
 
+config DVB_TAS2101
+	tristate "Tmax TAS2101 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	Say Y when you want to support this frontend.
+
 config DVB_M88DS3103
 	tristate "Montage Technology M88DS3103"
 	depends on DVB_CORE && I2C && I2C_MUX
@@ -705,6 +712,14 @@ config DVB_MXL692
 	  supports ATSC 8VSB and QAM modes. Say Y when you want to
 	  support this frontend.
 
+config DVB_MN88436
+	tristate "Panasonic MN88436"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
+	  to support this frontend.
+
 comment "ISDB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
@@ -730,6 +745,14 @@ config DVB_MB86A20S
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A driver for Fujitsu mb86a20s ISDB-T/ISDB-Tsb demodulator.
+	  Say Y when you want to support this frontend.
+
+config DVB_MTV23X
+	tristate "RAONTECH mtv23x"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A driver for RAONTECH mtv23x DVB-T/ISDB-T demodulator.
 	  Say Y when you want to support this frontend.
 
 comment "ISDB-S (satellite) & ISDB-T (terrestrial) frontends"

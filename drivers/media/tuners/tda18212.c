@@ -82,6 +82,7 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 			ret = -EINVAL;
 			goto error;
 		}
+		buf[0] = 0x30;
 		break;
 	case SYS_DVBT2:
 		switch (c->bandwidth_hz) {
@@ -101,11 +102,13 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 			ret = -EINVAL;
 			goto error;
 		}
+		buf[0] = 0x30;
 		break;
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if_khz = dev->cfg.if_dvbc;
 		i = DVBC_8;
+		buf[0] = 0x00;
 		break;
 	default:
 		ret = -EINVAL;
@@ -116,7 +119,18 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto error;
 
+	ret = regmap_write(dev->regmap, 0x5f, 0x00);
+	if (ret)
+		goto error;
+
 	ret = regmap_write(dev->regmap, 0x06, 0x00);
+	if (ret)
+		goto error;
+
+	if (dev->cfg.loop_through)
+		buf[0] |= 0x80;
+
+	ret = regmap_write(dev->regmap, 0x0c, buf[0]);
 	if (ret)
 		goto error;
 
@@ -126,7 +140,7 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 
 	buf[0] = 0x02;
 	buf[1] = bw_params[i][1];
-	buf[2] = 0x03; /* default value */
+	buf[2] = dev->cfg.xtout ? 0x43 : 0x40; /* 0x03; default value */
 	buf[3] = DIV_ROUND_CLOSEST(if_khz, 50);
 	buf[4] = ((c->frequency / 1000) >> 16) & 0xff;
 	buf[5] = ((c->frequency / 1000) >>  8) & 0xff;
