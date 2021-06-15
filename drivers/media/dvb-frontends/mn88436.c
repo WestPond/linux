@@ -3048,7 +3048,7 @@ static int DMD_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	
 	c->cnr.len = 2;
 	c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
-	c->cnr.stat[0].uvalue =  val%100;
+	c->cnr.stat[0].uvalue =  val * 10;
 
 	c->cnr.stat[1].scale = FE_SCALE_RELATIVE;
 	c->cnr.stat[1].uvalue = (u16) (val/100) * 328;
