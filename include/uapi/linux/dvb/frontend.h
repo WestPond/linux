@@ -514,6 +514,7 @@ enum fe_interleaving {
 #define DTV_STREAM_ID		42
 #define DTV_ISDBS_TS_ID_LEGACY	DTV_STREAM_ID
 #define DTV_DVBT2_PLP_ID_LEGACY	43
+#define DTV_MODCODE		44
 
 #define DTV_ENUM_DELSYS		44
 
@@ -734,7 +735,8 @@ enum atscmh_rs_code_mode {
 };
 
 #define NO_STREAM_ID_FILTER	(~0U)
-#define LNA_AUTO                (~0U)
+#define LNA_AUTO            (~0U)
+#define MODCODE_ALL         (~0U)
 
 /**
  * enum fecap_scale_params - scale types for the quality parameters.
@@ -1007,5 +1009,27 @@ struct dvb_frontend_event {
 #define FE_GET_FRONTEND		   _IOR('o', 77, struct dvb_frontend_parameters)
 
 #endif
+
+struct ecp3_info
+{
+	__u8 reg;
+	__u32 data;
+};
+
+struct mcu24cxx_info
+{
+	__u32 bassaddr;
+	__u8 reg;
+	__u32 data;
+};
+
+struct eeprom_info
+{
+	__u8 reg;
+	__u8 data;
+};
+
+#define FE_ECP3FW_READ    _IOR('o', 90, struct ecp3_info)
+#define FE_ECP3FW_WRITE   _IOW('o', 91, struct ecp3_info)
 
 #endif /*_DVBFRONTEND_H_*/
