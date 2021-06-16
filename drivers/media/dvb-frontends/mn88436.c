@@ -1694,9 +1694,6 @@ MXL_STATUS MxLWare603_API_ReqDevVersionInfo(struct dvb_frontend *fe, MXL603_VER_
 		status |= MxLWare603_OEM_ReadRegister(fe, CHIP_VERSION_REQ_REG, &readBack);
 		mxlDevVerInfoPtr->chipVersion = (readBack & 0xFF); 
 
-		printk("Chip ID = 0x%d, Version = 0x%d \n", mxlDevVerInfoPtr->chipId, 
-			mxlDevVerInfoPtr->chipVersion);
-
 		// Get MxLWare version infromation
 		for (k = 0; k < MXL603_VERSION_SIZE; k++)
 			mxlDevVerInfoPtr->mxlwareVer[k] = MxLWare603DrvVersion[k];
@@ -1763,12 +1760,6 @@ MXL_STATUS MxLWare603_API_CfgTunerMode(struct dvb_frontend *fe, MXL603_TUNER_MOD
 	UINT8 status = MXL_SUCCESS;
 	UINT8 dfeRegData = 0;
 	//struct MXL603_REG_CTRL_INFO_T* tmpRegTable;
-
-	printk(" Signal Mode = %d, IF Freq = %d, xtal = %d, IF Gain = %d", 
-		tunerModeCfg.signalMode,
-		tunerModeCfg.ifOutFreqinKHz,
-		tunerModeCfg.xtalFreqSel,
-		tunerModeCfg.ifOutGainLevel); 
 
 	switch(tunerModeCfg.signalMode)
 	{
@@ -1912,12 +1903,6 @@ MXL_STATUS MxLWare603_API_CfgTunerAGC(struct dvb_frontend *fe, MXL603_AGC_CFG_T 
 	UINT8 status = MXL_SUCCESS;
 	UINT8 regData = 0; 
 
-	printk("%s, AGC sel = %d, attack point set = %d, Flip = %d \n", 
-		__FUNCTION__, 
-		agcCfg.agcType,
-		agcCfg.setPoint, 
-		agcCfg.agcPolarityInverstion);
-
 	if ((agcCfg.agcPolarityInverstion <= MXL_ENABLE) && 
 		(agcCfg.agcType <= MXL603_AGC_EXTERNAL))
 	{
@@ -2000,7 +1985,6 @@ MXL_STATUS MxLWare603_API_CfgTunerLoopThrough(struct dvb_frontend *fe, MXL_BOOL 
 --|---------------------------------------------------------------------------*/
 
 MXL_STATUS MxLWare603_API_CfgTunerChanTune(struct dvb_frontend *fe, MXL603_CHAN_TUNE_CFG_T chanTuneCfg)
-													   
 {
 	UINT64 frequency;
 	UINT32 freq = 0;
@@ -2009,13 +1993,6 @@ MXL_STATUS MxLWare603_API_CfgTunerChanTune(struct dvb_frontend *fe, MXL603_CHAN_
 	UINT8 agcData = 0;
 	UINT8 dfeTuneData = 0;
 	UINT8 dfeCdcData = 0;
-
-	printk("%s, signal type = %d, Freq = %d, BW = %d, Xtal = %d \n",  
-		__FUNCTION__,
-		chanTuneCfg.signalMode, 
-		chanTuneCfg.freqInHz, 
-		chanTuneCfg.bandWidth, 
-		chanTuneCfg.xtalFreqSel);
 
 	// Abort Tune
 	status |= MxLWare603_OEM_WriteRegister(fe, START_TUNE_REG, 0x00); 
@@ -2163,12 +2140,9 @@ MXL_STATUS MxLWare603_API_CfgTunerIFOutParam(struct dvb_frontend *fe,  MXL603_IF
 	UINT8 readData = 0;
 	UINT8 control = 0;
 
-	printk("%s, Manual set = %d \n", __FUNCTION__, ifOutCfg.manualFreqSet); 
-
 	//Test only 
 	MxLWare603_OEM_WriteRegister(fe, 0x10, 0x99);
 	MxLWare603_OEM_ReadRegister(fe, 0x10, &readData);
-	printk("\n ----------- test Tuner I2C read out = 0x%x [ if 0x99, I2C OK!]-------------\n", readData); 
 
 	// Read back register for manual IF Out 
 	status = MxLWare603_OEM_ReadRegister(fe, IF_FREQ_SEL_REG, &readData);
@@ -2287,8 +2261,6 @@ MXL_STATUS MxLWare603_API_ReqTunerLockStatus(struct dvb_frontend *fe,  MXL_BOOL*
 
 		if ((regData & 0x02) == 0x02) rfLockStatus = MXL_LOCKED;
 		if ((regData & 0x01) == 0x01) refLockStatus = MXL_LOCKED;
-
-		printk(" RfSynthStatus = %d, RefSynthStatus = %d \n", (UINT8)rfLockStatus,(UINT8)refLockStatus); 
 
 		*rfLockPtr =  rfLockStatus;
 		*refLockPtr = refLockStatus;
@@ -2465,22 +2437,20 @@ MXL_STATUS Mxl603SetFreqBw(struct dvb_frontend *fe,UINT32 freq)
 	MXL603_CHAN_TUNE_CFG_T chanTuneCfg;
 	UINT32 rf;
 //	devId = MXL603_I2C_ADDR;
-	
+
 	//Step 7 : Channel frequency & bandwidth setting
-	printk("freq=%d",freq);
 	if(freq>1000000)rf=freq;
 	else if(freq>1000)rf=freq*1000;
 	else
 		rf=freq*1000000;
-	
-	
+
 	chanTuneCfg.bandWidth = MXL603_TERR_BW_6MHz;
 	chanTuneCfg.freqInHz = rf;
 	if(param.system == DMD_E_ATSC)
 	chanTuneCfg.signalMode = MXL603_DIG_ISDBT_ATSC;
 	else
 	chanTuneCfg.signalMode = MXL603_DIG_J83B;
-	
+
 	chanTuneCfg.startTune = MXL_START_TUNE;
 	chanTuneCfg.xtalFreqSel =MXL603_XTAL_16MHz;
 
@@ -2496,15 +2466,6 @@ MXL_STATUS Mxl603SetFreqBw(struct dvb_frontend *fe,UINT32 freq)
 
 	// Read back Tuner lock status
 	status = MxLWare603_API_ReqTunerLockStatus(fe, &rfLockPtr, &refLockPtr);
-	if (status == MXL_TRUE)
-	{
-		if (MXL_LOCKED == rfLockPtr && MXL_LOCKED == refLockPtr)
-		{
-			printk("Tuner locked\n"); //If system runs into here, it mean that Tuner locked and output IF OK!!
-		}
-		else
-			printk("Tuner unlocked\n");
-	}
 	return status; 
 }
 
@@ -2802,20 +2763,19 @@ DMD_ERROR_t DMD_scan_vq(struct dvb_frontend* fe, DMD_PARAMETER_t *param )
 		timeout = 2000;
 		break;
 	}
-	
+
 	for(i=0;i<160;i++)
 	{
 		DMD_I2C_Read(fe, DMD_BANK_MAIN(param->devid)  ,DMD_MAIN_STSMON1	 , &rd );
 		//VQ LOCK
 		if( rd & 0x1 )
 		{
-			param->info[DMD_E_INFO_LOCK] = DMD_E_LOCKED;	
+			param->info[DMD_E_INFO_LOCK] = DMD_E_LOCKED;
 			ret = DMD_E_OK;
-			printk("Singal LOCK.");
 			break;
 		}
 		msleep(2);			//wait 1ms
-		
+
 	}
 
 	return ret;
@@ -2938,9 +2898,9 @@ DMD_ERROR_t DMD_init( struct dvb_frontend* fe, DMD_PARAMETER_t* param )
 
 
 static int MNDMD_init(struct dvb_frontend* fe)
-{	
+{
 	struct mndmd_state *state = fe->demodulator_priv;
-	printk( "_______MNDMD init_____" );
+
 	DMD_open(&param);
 	DMD_init( fe,&param);
 	MXL603_init(fe);
@@ -2954,7 +2914,7 @@ static int DMD_set_parameters(struct dvb_frontend* fe)
 	int ret;
 	struct mndmd_state* state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	printk( "_______DMD_set_parameters_____" );
+
 	switch (c->modulation) {
 	case VSB_8:
 		param.system = DMD_E_ATSC;
@@ -2969,11 +2929,11 @@ static int DMD_set_parameters(struct dvb_frontend* fe)
 		return -EINVAL;
 	}
 	DMD_set_system(fe,&param);
-	
+
 	Mxl603SetFreqBw(fe, c->frequency);
 	msleep(2);
 	DMD_device_post_tune(fe, &param );
-	
+
 	/* Call Lock/SYNC Status Judgement */
 	 DMD_device_scan(fe, &param );
 
