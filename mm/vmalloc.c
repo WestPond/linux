@@ -2638,6 +2638,14 @@ void *vmalloc(unsigned long size)
 }
 EXPORT_SYMBOL(vmalloc);
 
+void *vmalloc_exec(unsigned long size)
+{
+	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+				GFP_KERNEL, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+				__builtin_return_address(0));
+}
+EXPORT_SYMBOL(vmalloc_exec);
+
 /**
  * vzalloc - allocate virtually contiguous memory with zero fill
  * @size:    allocation size
