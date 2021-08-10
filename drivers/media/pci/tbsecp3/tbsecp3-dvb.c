@@ -594,7 +594,6 @@ static void reset_demod(struct tbsecp3_adapter *adapter)
 	usleep_range(50000, 100000);
 }
 
-#ifdef CONFIG_DVB_GX1133
 static struct tas2101_config tbs6902_demod_cfg[] = {
 	{
 		.i2c_address   = 0x60,
@@ -615,6 +614,7 @@ static struct tas2101_config tbs6902_demod_cfg[] = {
 	}
 };
 
+#ifdef CONFIG_DVB_GX1133
 static struct gx1133_config tbs6902_gx1133_cfg[] = {
 	{
 		.i2c_address   = 0x52,
@@ -628,13 +628,13 @@ static struct gx1133_config tbs6902_gx1133_cfg[] = {
 		.read_properties = ecp3_spi_read,
 	}
 };
+#endif
 
 static struct av201x_config tbs6902_av201x_cfg = {
 		.i2c_address = 0x62,
 		.id 		 = ID_AV2012,
 		.xtal_freq	 = 27000,		/* kHz */
 };
-#endif
 
 #ifdef CONFIG_DVB_TAS2971
 static struct tas2101_config tbs6302se_demod_cfg[] = {
@@ -1813,9 +1813,8 @@ static int tbsecp3_frontend_attach(struct tbsecp3_adapter *adapter)
 		break;
 #endif
 
-#ifdef CONFIG_DVB_GX1133
 	case TBSECP3_BOARD_TBS6902:
-		if(pci->subsystem_device!=0x0003){
+		if(dev->pci_dev->subsystem_device!=0x0003){
 			adapter->fe = dvb_attach(tas2101_attach, &tbs6902_demod_cfg[adapter->nr], i2c);
 
 		if (adapter->fe == NULL)
@@ -1830,8 +1829,9 @@ static int tbsecp3_frontend_attach(struct tbsecp3_adapter *adapter)
 			    adapter->nr);
 		    goto frontend_atach_fail;
 		}
-
-		}else{
+		}
+#ifdef CONFIG_DVB_GX1133
+		else{
 			adapter->fe = dvb_attach(gx1133_attach, &tbs6902_gx1133_cfg[adapter->nr], i2c);
 
 			if (adapter->fe == NULL)
@@ -1848,7 +1848,7 @@ static int tbsecp3_frontend_attach(struct tbsecp3_adapter *adapter)
 			}
 
 		}
-
+#endif
 
 		if (tbsecp3_attach_sec(adapter, adapter->fe) == NULL) {
 		    dev_warn(&dev->pci_dev->dev,
@@ -1856,7 +1856,6 @@ static int tbsecp3_frontend_attach(struct tbsecp3_adapter *adapter)
 			    adapter->nr);
 		}
 		break;
-#endif
 
 #if defined(CONFIG_DVB_STV091X) && defined(CONFIG_DVB_STV6120)
 	case TBSECP3_BOARD_TBS6903:
