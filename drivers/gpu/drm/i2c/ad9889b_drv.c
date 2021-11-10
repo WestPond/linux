@@ -50,6 +50,79 @@ static int ad9889b_reg_mod(struct i2c_client *client, u8 reg, u8 mask, u8 val)
 	return i2c_smbus_write_byte_data(client, reg, v);
 }
 
+static void ad9889b_mute(struct ad9889b_priv *priv, u8 mute)
+{
+	ad9889b_reg_mod(priv->client, 0x45, 0xc0, mute ? 0x40 : 0x80 );
+}
+
+static void ad9889b_power_up(struct ad9889b_priv *priv)
+{
+	u8 val;
+	int i;
+
+	/* Power up chip */
+	ad9889b_reg_mod(priv->client, 0x41, 0x40, 0);
+	for (i = 0; i < 20; ++i) {
+		val = ad9889b_reg_read(priv->client, 0x41);
+		if ((val & 0x40) == 0)
+			break;
+		ad9889b_reg_mod(priv->client, 0x41, 0x40, 0);
+		msleep(10);
+	}
+
+	/* Static setup */
+	ad9889b_reg_mod(priv->client, 0x0a, 0x60, 0x00);
+	ad9889b_reg_write(priv->client, 0x98, 0x07);		/* Driver does 0x03 */
+	ad9889b_reg_write(priv->client, 0x9c, 0x38);
+	ad9889b_reg_write(priv->client, 0x9d, 0x61);
+	ad9889b_reg_write(priv->client, 0xa2, 0x87);
+	ad9889b_reg_write(priv->client, 0xa3, 0x87);
+	ad9889b_reg_write(priv->client, 0xbb, 0xff);
+}
+
+static void ad9889b_power_down(struct ad9889b_priv *priv)
+{
+	/* Power down */
+	ad9889b_reg_mod(priv->client, 0x41, 0x40, 0x40);
+
+	/* Turn off TMDS */
+	ad9889b_reg_write(priv->client, 0xa1, 0x3c);
+}
+
+static void ad9889b_setup(struct ad9889b_priv *priv)
+{
+	/* Input format: 48Khz, 24-bit RGB, >30Hz */
+	ad9889b_reg_write(priv->client, 0x15, 0x20);
+	/* Output format: RGB */
+	ad9889b_reg_write(priv->client, 0x16, 0x30);
+	/* 16:9 aspect, color upconvert */
+	ad9889b_reg_mod(priv->client, 0x17, 0x06, 0x06);
+	/* RGB output, Valid AVI info */
+	ad9889b_reg_mod(priv->client, 0x45, 0x3e, 0x08);
+	/* Disable CSC */
+	ad9889b_reg_mod(priv->client, 0x3b, 0x01, 0x00);
+	/* AVI Info Frame full range */
+	ad9889b_reg_mod(priv->client, 0xcd, 0x06, 0x04);
+
+
+	/* Scan information pc */
+	ad9889b_reg_write(priv->client, 0x46, 0x80);
+	/* Same aspect ratio */
+	ad9889b_reg_write(priv->client, 0x47, 0x80);
+	/* No clk delay */
+	ad9889b_reg_write(priv->client, 0xba, 0x60);
+
+	/* Disable HDPC, not supporting */
+	ad9889b_reg_mod(priv->client, 0xaf, 0x82, 0x00);	/* HDCP desired = 0, Frame Encryption = 0, DVI */
+
+	/* SPDIF Audio */
+	ad9889b_reg_mod(priv->client, 0x44, 0x80, 0x80);
+	/* No I2S */
+	ad9889b_reg_write(priv->client, 0x0c, 0x00);
+	/* Select SPDIF */
+	ad9889b_reg_write(priv->client, 0x0a, 0x08);
+}
+
 static void ad9889b_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_cleanup(connector);
@@ -147,15 +220,30 @@ static void ad9889b_bridge_enable(struct drm_bridge *bridge)
 {
 	struct ad9889b_priv *priv = bridge_to_ad9889b_priv(bridge);
 
-// TODO: Power up transmitter
+	if (priv->rxs) {
+		/* Power up transmitter */
+		ad9889b_power_up(priv);
+		ad9889b_mute(priv, 1);
+		ad9889b_setup(priv);
 
+		/* Power on TMSD */
+		ad9889b_reg_write(priv->client, 0xa1, 0x0);
+		ad9889b_mute(priv, 0);
+	}
 	priv->enabled = 1;
 }
 
 static void ad9889b_bridge_disable(struct drm_bridge *bridge)
 {
 	struct ad9889b_priv *priv = bridge_to_ad9889b_priv(bridge);
-// TODO: Power down transmitter
+
+	/* Power down transmitter */
+	ad9889b_power_down(priv);
+
+	/* Power off tsmds */
+	ad9889b_mute(priv, 1);
+	ad9889b_reg_write(priv->client, 0xa1, 0x3c);
+
 	priv->enabled = 0;
 }
 
@@ -172,79 +260,6 @@ static const struct drm_bridge_funcs ad9889b_bridge_funcs = {
 	.mode_set = ad9889b_bridge_mode_set,
 	.enable = ad9889b_bridge_enable,
 };
-
-static void ad9889b_mute(struct ad9889b_priv *priv, u8 mute)
-{
-	ad9889b_reg_mod(priv->client, 0x45, 0xc0, mute ? 0x40 : 0x80 );
-}
-
-static void ad9889b_power_up(struct ad9889b_priv *priv)
-{
-	u8 val;
-	int i;
-
-	/* Power up chip */
-	ad9889b_reg_mod(priv->client, 0x41, 0x40, 0);
-	for (i = 0; i < 20; ++i) {
-		val = ad9889b_reg_read(priv->client, 0x41);
-		if ((val & 0x40) == 0)
-			break;
-		ad9889b_reg_mod(priv->client, 0x41, 0x40, 0);
-		msleep(10);
-	}
-
-	/* Static setup */
-	ad9889b_reg_mod(priv->client, 0x0a, 0x60, 0x00);
-	ad9889b_reg_write(priv->client, 0x98, 0x07);		/* Driver does 0x03 */
-	ad9889b_reg_write(priv->client, 0x9c, 0x38);
-	ad9889b_reg_write(priv->client, 0x9d, 0x61);
-	ad9889b_reg_write(priv->client, 0xa2, 0x87);
-	ad9889b_reg_write(priv->client, 0xa3, 0x87);
-	ad9889b_reg_write(priv->client, 0xbb, 0xff);
-}
-
-static void ad9889b_power_down(struct ad9889b_priv *priv)
-{
-	/* Power down */
-	ad9889b_reg_mod(priv->client, 0x41, 0x40, 0x40);
-
-	/* Turn off TMDS */
-	ad9889b_reg_write(priv->client, 0xa1, 0x3c);
-}
-
-static void ad9889b_setup(struct ad9889b_priv *priv)
-{
-	/* Input format: 48Khz, 24-bit RGB, >30Hz */
-	ad9889b_reg_write(priv->client, 0x15, 0x20);
-	/* Output format: RGB */
-	ad9889b_reg_write(priv->client, 0x16, 0x30);
-	/* 16:9 aspect, color upconvert */
-	ad9889b_reg_mod(priv->client, 0x17, 0x06, 0x06);
-	/* RGB output, Valid AVI info */
-	ad9889b_reg_mod(priv->client, 0x45, 0x3e, 0x08);
-	/* Disable CSC */
-	ad9889b_reg_mod(priv->client, 0x3b, 0x01, 0x00);
-	/* AVI Info Frame full range */
-	ad9889b_reg_mod(priv->client, 0xcd, 0x06, 0x04);
-
-
-	/* Scan information pc */
-	ad9889b_reg_write(priv->client, 0x46, 0x80);
-	/* Same aspect ratio */
-	ad9889b_reg_write(priv->client, 0x47, 0x80);
-	/* No clk delay */
-	ad9889b_reg_write(priv->client, 0xba, 0x60);
-
-	/* Disable HDPC, not supporting */
-	ad9889b_reg_mod(priv->client, 0xaf, 0x82, 0x00);	/* HDCP desired = 0, Frame Encryption = 0, DVI */
-
-	/* SPDIF Audio */
-	ad9889b_reg_mod(priv->client, 0x44, 0x80, 0x80);
-	/* No I2S */
-	ad9889b_reg_write(priv->client, 0x0c, 0x00);
-	/* Select SPDIF */
-	ad9889b_reg_write(priv->client, 0x0a, 0x08);
-}
 
 static void ad9889b_irq_enable(struct ad9889b_priv *priv, u8 enable)
 {
@@ -274,18 +289,11 @@ static void ad9889b_hpd_poll(struct ad9889b_priv *priv, u8 flags)
 		val = ad9889b_reg_read(priv->client, 0x42);
 		if ((val & 0x40) && !priv->hpd) {
 			priv->hpd = 1;
-
-			ad9889b_power_up(priv);
-			ad9889b_mute(priv, 1);
-			ad9889b_setup(priv);
-
 			if (dev)
 				drm_kms_helper_hotplug_event(dev);
-		} else if (!(val & 0x40) && priv->hpd) {
-			priv->hpd = 0;
-
-			ad9889b_power_down(priv);
 		}
+		else if (!(val & 0x40) && priv->hpd)
+			priv->hpd = 0;
 	}
 
 	if (flags & 0x20) {
@@ -293,11 +301,22 @@ static void ad9889b_hpd_poll(struct ad9889b_priv *priv, u8 flags)
 		if ((val & 0x20) && !priv->rxs) {
 			priv->rxs = 1;
 
-			/* Power on TMSD */
-			ad9889b_reg_write(priv->client, 0xa1, 0x0);
-			ad9889b_mute(priv, 0);
-		} else if (!(val & 0x20) && priv->rxs) {
+			if (priv->enabled) {
+				/* Power up transmitter */
+				ad9889b_power_up(priv);
+				ad9889b_mute(priv, 1);
+				ad9889b_setup(priv);
+
+				/* Power on TMSD */
+				ad9889b_reg_write(priv->client, 0xa1, 0x0);
+				ad9889b_mute(priv, 0);
+			}
+		}
+		else if (!(val & 0x20) && priv->rxs) {
 			priv->rxs = 0;
+
+			/* Power off transmitter */
+			ad9889b_power_down(priv);
 
 			/* Power off tsmds */
 			ad9889b_mute(priv, 1);
@@ -390,7 +409,8 @@ static int ad9889b_create(struct device *dev)
 
 		ad9889b_irq_enable(priv, 1);
 		priv->irq = 1;
-	} else {
+	}
+	else {
 		ad9889b_irq_enable(priv, 0);
 
 		priv->hpd_poll = kthread_run (ad9889b_hpd_task, priv, "ad9889_hpd_poll");
