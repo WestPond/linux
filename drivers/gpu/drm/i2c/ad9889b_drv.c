@@ -1,9 +1,9 @@
 #include <linux/component.h>
-//#include <linux/gpio/consumer.h>
 #include <linux/hdmi.h>
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/kthread.h>
+#include <linux/workqueue.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
@@ -17,6 +17,7 @@ struct ad9889b_priv {
 	struct drm_encoder encoder;
 	struct drm_bridge bridge;
 	struct drm_connector connector;
+	struct delayed_work work;
 
 	u8 hpd;
 	u8 rxs;
@@ -123,6 +124,20 @@ static void ad9889b_setup(struct ad9889b_priv *priv)
 	ad9889b_reg_write(priv->client, 0x0a, 0x08);
 }
 
+static void ad9889b_work(struct work_struct *work)
+{
+	struct ad9889b_priv *priv = container_of(work, struct ad9889b_priv, work.work);
+
+	/* Power up transmitter */
+	ad9889b_power_up(priv);
+	ad9889b_mute(priv, 1);
+	ad9889b_setup(priv);
+
+	/* Power on TMSD */
+	ad9889b_reg_write(priv->client, 0xa1, 0x0);
+	ad9889b_mute(priv, 0);
+}
+
 static void ad9889b_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_cleanup(connector);
@@ -220,16 +235,9 @@ static void ad9889b_bridge_enable(struct drm_bridge *bridge)
 {
 	struct ad9889b_priv *priv = bridge_to_ad9889b_priv(bridge);
 
-	if (priv->rxs) {
-		/* Power up transmitter */
-		ad9889b_power_up(priv);
-		ad9889b_mute(priv, 1);
-		ad9889b_setup(priv);
+	if (priv->rxs)
+		schedule_delayed_work(&priv->work, msecs_to_jiffies(500));
 
-		/* Power on TMSD */
-		ad9889b_reg_write(priv->client, 0xa1, 0x0);
-		ad9889b_mute(priv, 0);
-	}
 	priv->enabled = 1;
 }
 
@@ -301,16 +309,8 @@ static void ad9889b_hpd_poll(struct ad9889b_priv *priv, u8 flags)
 		if ((val & 0x20) && !priv->rxs) {
 			priv->rxs = 1;
 
-			if (priv->enabled) {
-				/* Power up transmitter */
-				ad9889b_power_up(priv);
-				ad9889b_mute(priv, 1);
-				ad9889b_setup(priv);
-
-				/* Power on TMSD */
-				ad9889b_reg_write(priv->client, 0xa1, 0x0);
-				ad9889b_mute(priv, 0);
-			}
+			if (priv->enabled)
+				schedule_delayed_work(&priv->work, msecs_to_jiffies(500));
 		}
 		else if (!(val & 0x20) && priv->rxs) {
 			priv->rxs = 0;
@@ -377,6 +377,8 @@ static int ad9889b_create(struct device *dev)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, priv);
+
+	INIT_DELAYED_WORK(&priv->work, ad9889b_work);
 
 	INIT_LIST_HEAD(&priv->bridge.list);
 
