@@ -678,15 +678,22 @@ static int cp210x_read_vendor_block(struct usb_serial *serial, u8 type, u16 val,
 {
 	void *dmabuf;
 	int result;
+	int i;
 
 	dmabuf = kmalloc(bufsize, GFP_KERNEL);
 	if (!dmabuf)
 		return -ENOMEM;
 
-	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-				 CP210X_VENDOR_SPECIFIC, type, val,
-				 cp210x_interface_num(serial), dmabuf, bufsize,
-				 USB_CTRL_GET_TIMEOUT);
+	/* CP2108 can be flaky it seems, so retry on length 0 or stall */
+	for (i=0; i < 3; ++i) {
+		result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+					CP210X_VENDOR_SPECIFIC, type, val,
+					cp210x_interface_num(serial), dmabuf, bufsize,
+					USB_CTRL_GET_TIMEOUT);
+		if (result == 0 || result == -EPIPE)
+			continue;
+		break;
+	}
 	if (result == bufsize) {
 		memcpy(buf, dmabuf, bufsize);
 		result = 0;
@@ -779,15 +786,22 @@ static int cp210x_write_vendor_block(struct usb_serial *serial, u8 type,
 {
 	void *dmabuf;
 	int result;
+	int i;
 
 	dmabuf = kmemdup(buf, bufsize, GFP_KERNEL);
 	if (!dmabuf)
 		return -ENOMEM;
 
-	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-				 CP210X_VENDOR_SPECIFIC, type, val,
-				 cp210x_interface_num(serial), dmabuf, bufsize,
-				 USB_CTRL_SET_TIMEOUT);
+	/* CP2108 can be flaky it seems, so retry on length 0 or stall */
+	for (i=0; i < 3; ++i) {
+		result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+					CP210X_VENDOR_SPECIFIC, type, val,
+					cp210x_interface_num(serial), dmabuf, bufsize,
+					USB_CTRL_SET_TIMEOUT);
+		if (result == 0 || result == -EPIPE)
+			continue;
+		break;
+	}
 
 	kfree(dmabuf);
 
