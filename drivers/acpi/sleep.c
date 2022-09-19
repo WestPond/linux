@@ -1040,6 +1040,7 @@ static bool acpi_s2idle_wake(void)
 			return true;
 		}
 
+		pm_wakeup_clear(acpi_sci_irq);
 		rearm_wake_irq(acpi_sci_irq);
 	}
 
@@ -1290,10 +1291,8 @@ static void acpi_sleep_hibernate_setup(void)
 		return;
 
 	acpi_get_table(ACPI_SIG_FACS, 1, (struct acpi_table_header **)&facs);
-	if (facs) {
+	if (facs)
 		s4_hardware_signature = facs->hardware_signature;
-		acpi_put_table((struct acpi_table_header *)facs);
-	}
 }
 #else /* !CONFIG_HIBERNATION */
 static inline void acpi_sleep_hibernate_setup(void) {}

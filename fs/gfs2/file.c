@@ -474,8 +474,8 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	file_update_time(vmf->vma->vm_file);
 
 	/* page is wholly or partially inside EOF */
-	if (offset > size - PAGE_SIZE)
-		length = offset_in_page(size);
+	if (size - offset < PAGE_SIZE)
+		length = size - offset;
 	else
 		length = PAGE_SIZE;
 
@@ -717,7 +717,8 @@ static int gfs2_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 
 	if (file->f_mode & FMODE_WRITE) {
-		gfs2_rs_delete(ip, &inode->i_writecount);
+		if (gfs2_rs_active(&ip->i_res))
+			gfs2_rs_delete(ip);
 		gfs2_qa_put(ip);
 	}
 	return 0;
@@ -938,8 +939,11 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		current->backing_dev_info = inode_to_bdi(inode);
 		buffered = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
 		current->backing_dev_info = NULL;
-		if (unlikely(buffered <= 0))
+		if (unlikely(buffered <= 0)) {
+			if (!ret)
+				ret = buffered;
 			goto out_unlock;
+		}
 
 		/*
 		 * We need to ensure that the page cache pages are written to
