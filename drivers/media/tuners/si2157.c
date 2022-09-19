@@ -35,7 +35,7 @@ static int si2157_cmd_execute(struct i2c_client *client, struct si2157_cmd *cmd)
 
 	if (cmd->rlen) {
 		/* wait cmd execution terminate */
-		#define TIMEOUT 500
+		#define TIMEOUT 80
 		timeout = jiffies + msecs_to_jiffies(TIMEOUT);
 		while (!time_after(jiffies, timeout)) {
 			ret = i2c_master_recv(client, cmd->args, cmd->rlen);
@@ -425,15 +425,16 @@ static int si2157_set_params(struct dvb_frontend *fe)
 		delivery_system = 0x00;
 		if_frequency = 3250000;
 		break;
+	case SYS_DVBC_ANNEX_B:
+		delivery_system = 0x10;
+		if_frequency = 4000000;
+		break;
 	case SYS_DVBT:
 	case SYS_DVBT2: /* it seems DVB-T and DVB-T2 both are 0x20 here */
 		delivery_system = 0x20;
 		break;
 	case SYS_DVBC_ANNEX_A:
 		delivery_system = 0x30;
-		break;
-	case SYS_DVBC_ANNEX_B:
-		delivery_system = 0x10;
 		break;
 	case SYS_ISDBT:
 		delivery_system = 0x40;
@@ -843,21 +844,7 @@ static int si2157_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&dev->stat_work, si2157_stat_work);
 
 	/* check if the tuner is there */
-	/* wake tuner */
-	switch (dev->chiptype)
-	{
-	case SI2157_CHIPTYPE_SI2141:
-		memcpy(cmd.args, "\xc0\x08\x01\x02\x00\x08\x01", 7);
-		cmd.wlen = 7;
-		break;
-	case SI2157_CHIPTYPE_SI2146:
-		memcpy(cmd.args, "\xc0\x05\x01\x00\x00\x0b\x00\x00\x01", 9);
-		cmd.wlen = 9;
-		break;
-	default:
-		memcpy(cmd.args, "\xc0\x00\x0c\x00\x00\x01\x01\x01\x01\x01\x01\x02\x00\x00\x01", 15);
-		cmd.wlen = 15;
-	}
+	cmd.wlen = 0;
 	cmd.rlen = 1;
 	ret = si2157_cmd_execute(client, &cmd);
 	if (ret && ret != -EAGAIN)
