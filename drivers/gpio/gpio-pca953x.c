@@ -398,7 +398,13 @@ static int pca953x_write_regs(struct pca953x_chip *chip, int reg, unsigned long 
 	for (i = 0; i < NBANK(chip); i++)
 		value[i] = bitmap_get_value8(val, i * BANK_SZ);
 
-	ret = regmap_bulk_write(chip->regmap, regaddr, value, NBANK(chip));
+//	ret = regmap_bulk_write(chip->regmap, regaddr, value, NBANK(chip));
+	ret = regmap_write(chip->regmap, regaddr, val[0]);
+	if (ret < 0) {
+		dev_err(&chip->client->dev, "failed writing register\n");
+		return ret;
+	}
+	ret = regmap_write(chip->regmap, regaddr + 1, val[1]);
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "failed writing register\n");
 		return ret;
