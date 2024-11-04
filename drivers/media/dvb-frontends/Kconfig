@@ -327,6 +327,14 @@ config DVB_CX22702
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
+config DVB_CXD2820R
+	tristate "Sony CXD2820R"
+	depends on DVB_CORE && I2C
+	select REGMAP_I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
 config DVB_S5H1432
 	tristate "Samsung s5h1432 demodulator (OFDM)"
 	depends on DVB_CORE && I2C
@@ -504,6 +512,13 @@ config DVB_RTL2832_SDR
 config DVB_SI2168
 	tristate "Silicon Labs Si2168"
 	depends on DVB_CORE && I2C && I2C_MUX
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
+config DVB_CXD2878
+	tristate "sony cxd2878 family Dvb-T/T2/C(j83-a/b/c),ISDB-T/C,ATSC Demodulator" 
+	depends on DVB_CORE && I2C 
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.

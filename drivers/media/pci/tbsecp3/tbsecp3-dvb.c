@@ -37,6 +37,7 @@
 #include "gx1503.h"
 #include "tas2971.h"
 
+#include "cxd2878.h"
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct sec_priv {
@@ -391,6 +392,23 @@ static struct av201x_config tbs6522_av201x_cfg[] = {
 	},
 };
 
+static struct cxd2878_config cxd6802_parallel_cfg = {
+	
+		.addr_slvt = 0x64,
+		.xtal      = SONY_DEMOD_XTAL_24000KHz,
+		.tuner_addr = 0x60,
+		.tuner_xtal = SONY_ASCOT3_XTAL_24000KHz,
+		.ts_mode	= 1,
+		.ts_ser_data = 0,
+		.ts_clk = 1,
+		.ts_clk_mask= 1,
+		.ts_valid = 0,
+		.atscCoreDisable = 0,
+		.lock_flag = 0,
+		.write_properties = ecp3_spi_write, 
+		.read_properties = ecp3_spi_read,
+	};
+
 
 
 static int tbsecp3_frontend_attach(struct tbsecp3_adapter *adapter)
@@ -630,6 +648,13 @@ static int tbsecp3_frontend_attach(struct tbsecp3_adapter *adapter)
 
 		break;
 	case 0x6205:
+		if (pci->subsystem_device == 0x03) {
+			adapter->fe = dvb_attach(cxd2878_attach, &cxd6802_parallel_cfg, i2c);
+			if (adapter->fe == NULL)
+				goto frontend_atach_fail;
+			break;
+		}
+
 	case 0x6281:
 		/* attach demod */
 		memset(&si2168_config, 0, sizeof(si2168_config));

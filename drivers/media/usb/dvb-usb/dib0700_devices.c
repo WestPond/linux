@@ -2230,7 +2230,7 @@ static int dib01x0_pmu_update(struct i2c_adapter *i2c, u16 *data, u8 len)
 	};
 	u8 index_data;
 
-	dibx000_i2c_set_speed(i2c, 250);
+//	dibx000_i2c_set_speed(i2c, 250);
 
 	if (i2c_transfer(i2c, msg, 2) != 2)
 		return -EIO;

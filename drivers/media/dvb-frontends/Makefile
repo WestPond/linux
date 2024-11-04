@@ -136,3 +136,4 @@ obj-$(CONFIG_DVB_AVL6882) += avl6882.o
 obj-$(CONFIG_DVB_MN88436) += mn88436.o
 obj-$(CONFIG_DVB_MTV23X) += mtv23x.o
 obj-$(CONFIG_DVB_GX1503) += gx1503.o
+obj-$(CONFIG_DVB_CXD2878) += cxd2878.o
