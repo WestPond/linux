@@ -437,7 +437,8 @@ void intel_backlight_disable(const struct drm_connector_state *old_conn_state)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
 
-	if (!panel->backlight.present)
+//  This crashes on soft boot. Seems the driver cannot handle the GPU being in a warm state correctly
+//	if (!panel->backlight.present)
 		return;
 
 	/*
